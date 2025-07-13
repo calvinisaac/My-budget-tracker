@@ -6,7 +6,8 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, DollarSign, List, LayoutDashboard, Settings, Search, Download, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck } from 'lucide-react';
 
 // --- Firebase Configuration ---
-// This should be replaced with your actual Firebase config object when running locally.
+// This now reads from environment variables for security.
+// For local development, it uses a .env file. For deployment, it uses variables set in the hosting provider (e.g., Netlify).
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_API_KEY,
   authDomain: import.meta.env.VITE_AUTH_DOMAIN,
@@ -312,8 +313,13 @@ function SettingsView({ initialBudgets, initialCategories, onSave, subscriptions
         const prompt = `My monthly income is £${totalIncome || 2000}. My fixed monthly bills and subscriptions total £${fixedExpenses}. Suggest a monthly budget based on the 50/30/20 rule for these categories: ${categories.expense.join(', ')}. Respond with only a valid JSON object where keys are category names and values are numbers.`;
         try {
             const resultText = await callGeminiApi(prompt);
-            const suggestedBudgets = JSON.parse(resultText);
-            setBudgets(prev => ({ ...prev, ...suggestedBudgets }));
+            const jsonString = extractJson(resultText);
+            if (jsonString) {
+                const suggestedBudgets = JSON.parse(jsonString);
+                setBudgets(prev => ({ ...prev, ...suggestedBudgets }));
+            } else {
+                throw new Error("No valid JSON found in AI response.");
+            }
         } catch (e) {
             console.error("Error getting AI suggestions:", e);
             alert("Sorry, I couldn't generate budget suggestions right now.");
@@ -697,6 +703,15 @@ function FirebaseConfigError() {
 }
 
 // --- Gemini API Helper ---
+function extractJson(text) {
+    const jsonMatch = text.match(/```json\n([\s\S]*?)\n```|({[\s\S]*})/);
+    if (jsonMatch) {
+        // If it's in a markdown block, take the first capturing group. Otherwise, take the second.
+        return jsonMatch[1] || jsonMatch[2];
+    }
+    return null;
+}
+
 async function callGeminiApi(prompt) {
     const apiKey = ""; // This will be handled by the Canvas environment
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
