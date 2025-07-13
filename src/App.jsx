@@ -8,12 +8,12 @@ import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, DollarSign, List, LayoutDash
 // --- Firebase Configuration ---
 // This should be replaced with your actual Firebase config object when running locally.
 const firebaseConfig = {
-  apiKey: "AIzaSyCG6J5SSaz3dapBV-fBibpI2JJkK9tJGb4",
-  authDomain: "my-budget-tracker-527a3.firebaseapp.com",
-  projectId: "my-budget-tracker-527a3",
-  storageBucket: "my-budget-tracker-527a3.firebasestorage.app",
-  messagingSenderId: "263272586943",
-  appId: "1:263272586943:web:6479ebcd397db929d9700a"
+  apiKey: import.meta.env.VITE_API_KEY,
+  authDomain: import.meta.env.VITE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_APP_ID
 };
 
 // --- Main App Component ---
