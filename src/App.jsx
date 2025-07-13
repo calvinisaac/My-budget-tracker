@@ -19,7 +19,7 @@ const firebaseConfig = {
 // --- Main App Component ---
 export default function App() {
     // --- Configuration Check ---
-    if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+    if (!firebaseConfig.apiKey) {
         return <FirebaseConfigError />;
     }
 
@@ -177,6 +177,7 @@ export default function App() {
                             <NavButton icon={Bot} label="Coach" activeView={activeView} onClick={() => setActiveView('coach')} />
                             <NavButton icon={Settings} label="Settings" activeView={activeView} onClick={() => setActiveView('settings')} />
                         </div>
+                        <button onClick={() => setIsAddTxDialogOpen(true)} className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-lg shadow-indigo-600/20"><Plus size={20} /><span>Add Transaction</span></button>
                     </div>
                 </header>
 
