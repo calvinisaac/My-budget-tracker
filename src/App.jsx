@@ -17,11 +17,16 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_APP_ID
 };
 
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
 // --- Main App Component ---
 export default function App() {
     // --- Configuration Check ---
     if (!firebaseConfig.apiKey) {
         return <FirebaseConfigError />;
+    }
+    if (!GEMINI_API_KEY) {
+        return <GeminiConfigError />;
     }
 
     // --- State Management ---
@@ -115,7 +120,20 @@ export default function App() {
     const createCrudHandlers = (collectionName) => ({
         add: async (item) => {
             if (!db || !userId) return;
-            try { await addDoc(collection(db, `users/${userId}/${collectionName}`), item); } 
+            try { 
+                // Create a copy to avoid mutating the original item object
+                const itemToAdd = { ...item };
+
+                // Convert specific fields to their correct types before saving
+                if (itemToAdd.amount) itemToAdd.amount = parseFloat(itemToAdd.amount);
+                if (itemToAdd.date) itemToAdd.date = new Date(itemToAdd.date);
+                if (itemToAdd.value) itemToAdd.value = parseFloat(itemToAdd.value);
+                if (itemToAdd.targetAmount) itemToAdd.targetAmount = parseFloat(itemToAdd.targetAmount);
+                if (itemToAdd.interestRate) itemToAdd.interestRate = parseFloat(itemToAdd.interestRate);
+                if (itemToAdd.minimumPayment) itemToAdd.minimumPayment = parseFloat(itemToAdd.minimumPayment);
+
+                await addDoc(collection(db, `users/${userId}/${collectionName}`), itemToAdd); 
+            } 
             catch (err) { console.error(`Error adding ${collectionName}:`, err); }
         },
         update: async (id, updates) => {
@@ -195,8 +213,21 @@ export default function App() {
                     </>
                 )}
             </div>
-            {isAddTxDialogOpen && <AddTransactionDialog categories={categories} onClose={() => setIsAddTxDialogOpen(false)} onAdd={transactionHandlers.add} />}
-            {isAddSubDialogOpen && <AddSubscriptionDialog onClose={() => setIsAddSubDialogOpen(false)} onAdd={subscriptionHandlers.add} />}
+            {isAddTxDialogOpen && <AddTransactionDialog 
+                categories={categories} 
+                onClose={() => setIsAddTxDialogOpen(false)} 
+                onAdd={async (transaction) => {
+                    await transactionHandlers.add(transaction);
+                    setIsAddTxDialogOpen(false);
+                }} 
+            />}
+            {isAddSubDialogOpen && <AddSubscriptionDialog 
+                onClose={() => setIsAddSubDialogOpen(false)} 
+                onAdd={async (subscription) => {
+                    await subscriptionHandlers.add(subscription);
+                    setIsAddSubDialogOpen(false);
+                }} 
+            />}
         </div>
     );
 }
@@ -665,7 +696,14 @@ function AddTransactionDialog({ categories, onClose, onAdd }) {
         setIsSuggesting(false);
     };
 
-    const handleSubmit = (e) => { e.preventDefault(); if (!amount || !description || !date) { alert("Please fill all fields."); return; } onAdd({ type, amount, category, description, date }); };
+    const handleSubmit = async (e) => { 
+        e.preventDefault(); 
+        if (!amount || !description || !date) { 
+            alert("Please fill all fields."); 
+            return; 
+        } 
+        await onAdd({ type, amount, category, description, date }); 
+    };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
@@ -685,7 +723,14 @@ function AddTransactionDialog({ categories, onClose, onAdd }) {
 }
 function AddSubscriptionDialog({ onClose, onAdd }) {
     const [name, setName] = useState(''); const [amount, setAmount] = useState(''); const [category, setCategory] = useState('Subscriptions');
-    const handleSubmit = (e) => { e.preventDefault(); if (!name || !amount) { alert("Please fill all fields."); return; } onAdd({ name, amount, category }); };
+    const handleSubmit = async (e) => { 
+        e.preventDefault(); 
+        if (!name || !amount) { 
+            alert("Please fill all fields."); 
+            return; 
+        } 
+        await onAdd({ name, amount, category }); 
+    };
     return (<div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"><div className="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-md m-4"><h2 className="text-2xl font-bold mb-6 text-white">Add Subscription or Bill</h2><form onSubmit={handleSubmit}><div className="mb-4"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-name">Name</label><input id="sub-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Netflix" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div><div className="mb-4"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-amount">Amount (£)</label><input id="sub-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div><div className="mb-6"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-category">Category</label><select id="sub-category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white"><option value="Subscriptions">Subscriptions</option><option value="Bills">Bills</option></select></div><div className="flex justify-end gap-4 mt-8"><button type="button" onClick={onClose} className="py-2 px-4 bg-slate-600 hover:bg-slate-500 text-slate-200 font-bold rounded-lg">Cancel</button><button type="submit" className="py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg">Add Subscription</button></div></form></div></div>);
 }
 function DateRangeFilter({ dateRange, setDateRange }) {
@@ -701,20 +746,21 @@ function BudgetStatus({ budgets, expenses }) {
 function FirebaseConfigError() {
     return (<div className="bg-slate-900 text-white min-h-screen flex items-center justify-center p-8"><div className="bg-red-900 border border-red-600 p-8 rounded-xl max-w-2xl text-center"><h1 className="text-3xl font-bold text-white mb-4">Configuration Error</h1><p className="text-lg text-slate-200 mb-6">It looks like you haven't configured your Firebase credentials yet.</p><p className="text-slate-300 mb-4">To fix this, open the <code className="bg-slate-700 p-1 rounded">src/App.jsx</code> file in your code editor and replace the placeholder <code className="bg-slate-700 p-1 rounded">firebaseConfig</code> object with the actual one from your Firebase project's settings.</p><div className="bg-slate-800 p-4 rounded-lg text-left text-sm text-slate-400"><pre className="whitespace-pre-wrap">{`// Find this section in your code:\nconst firebaseConfig = {\n    apiKey: "YOUR_API_KEY",\n    authDomain: "YOUR_AUTH_DOMAIN",\n    // ... and so on\n};\n\n// Replace it with the object from your Firebase project.`}</pre></div></div></div>);
 }
+function GeminiConfigError() {
+    return (<div className="bg-slate-900 text-white min-h-screen flex items-center justify-center p-8"><div className="bg-red-900 border border-red-600 p-8 rounded-xl max-w-2xl text-center"><h1 className="text-3xl font-bold text-white mb-4">AI Features Disabled</h1><p className="text-lg text-slate-200 mb-6">The Gemini API key is missing. AI-powered features like the financial coach and smart suggestions will not work.</p><p className="text-slate-300 mb-4">To fix this, get a free API key from Google AI Studio and add it to a <code className="bg-slate-700 p-1 rounded">.env</code> file in your project's root directory.</p><div className="bg-slate-800 p-4 rounded-lg text-left text-sm text-slate-400"><pre className="whitespace-pre-wrap">{`// Create a file named .env in the root of your project and add:\nVITE_GEMINI_API_KEY="YOUR_API_KEY_HERE"`}</pre></div></div></div>);
+}
 
 // --- Gemini API Helper ---
 function extractJson(text) {
     const jsonMatch = text.match(/```json\n([\s\S]*?)\n```|({[\s\S]*})/);
     if (jsonMatch) {
-        // If it's in a markdown block, take the first capturing group. Otherwise, take the second.
         return jsonMatch[1] || jsonMatch[2];
     }
     return null;
 }
 
 async function callGeminiApi(prompt) {
-    const apiKey = ""; // This will be handled by the Canvas environment
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
     
     const payload = {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
