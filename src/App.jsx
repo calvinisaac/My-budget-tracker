@@ -7,17 +7,17 @@ import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, DollarSign, List, LayoutDash
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
-  apiKey: "AIzaSyCG6J5SSaz3dapBV-fBibpI2JJkK9tJGb4",
-  authDomain: "my-budget-tracker-527a3.firebaseapp.com",
-  projectId: "my-budget-tracker-527a3",
-  storageBucket: "my-budget-tracker-527a3.firebasestorage.app",
-  messagingSenderId: "263272586943",
-  appId: "1:263272586943:web:6479ebcd397db929d9700a"
+  apiKey: import.meta.env.VITE_API_KEY,
+  authDomain: import.meta.env.VITE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_APP_ID
 };
 
-const GEMINI_API_KEY = "AIzaSyBSxiCYsPcofbzo2lTUBA-m7IZLRABbkOs";
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-// --- Helper & Error Components ---
+// --- Helper & Error Components (Defined First) ---
 
 function FirebaseConfigError() {
     return (<div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white min-h-screen flex items-center justify-center p-8"><div className="bg-red-900 border border-red-600 p-8 rounded-xl max-w-2xl text-center"><h1 className="text-3xl font-bold text-white mb-4">Configuration Error</h1><p className="text-lg text-slate-200 mb-6">It looks like you haven't configured your Firebase credentials yet.</p><p className="text-slate-300 mb-4">To fix this, open the <code className="bg-slate-700 p-1 rounded">src/App.jsx</code> file in your code editor and replace the placeholder <code className="bg-slate-700 p-1 rounded">firebaseConfig</code> object with the actual one from your Firebase project's settings.</p><div className="bg-slate-800 p-4 rounded-lg text-left text-sm text-slate-400"><pre className="whitespace-pre-wrap">{`// Find this section in your code:\nconst firebaseConfig = {\n    apiKey: "YOUR_API_KEY",\n    authDomain: "YOUR_AUTH_DOMAIN",\n    // ... and so on\n};\n\n// Replace it with the object from your Firebase project.`}</pre></div></div></div>);
@@ -616,13 +616,13 @@ function FinancialListComponent({ title, items, total, color, onDelete }) {
 }
 
 function SavingsGoalsView({ goals, handlers }) {
-    const [item, setItem] = useState({ name: '', targetAmount: '', currentAmount: 0 });
+    const [item, setItem] = useState({ name: '', targetAmount: '', currentAmount: 0, dueDate: '' });
     const [contribution, setContribution] = useState({ id: null, amount: '' });
 
     const handleAddGoal = (e) => {
         e.preventDefault();
         handlers.add({ ...item, targetAmount: parseFloat(item.targetAmount), currentAmount: 0 });
-        setItem({ name: '', targetAmount: '' });
+        setItem({ name: '', targetAmount: '', dueDate: '' });
     };
 
     const handleAddFunds = (goalId) => {
@@ -651,6 +651,7 @@ function SavingsGoalsView({ goals, handlers }) {
                                     <span className="text-slate-300">£{parseFloat(goal.currentAmount || 0).toLocaleString('en-GB')}</span>
                                     <span className="text-slate-400">£{parseFloat(goal.targetAmount).toLocaleString('en-GB')}</span>
                                 </div>
+                                {goal.dueDate && <p className="text-xs text-slate-400 mt-1">Due: {new Date(goal.dueDate).toLocaleDateString('en-GB')}</p>}
                             </div>
                             <div className="flex gap-2">
                                 <input type="number" placeholder="Add funds" value={contribution.id === goal.id ? contribution.amount : ''} onChange={e => setContribution({ id: goal.id, amount: e.target.value })} className="w-full bg-slate-700 p-2 rounded-lg" />
@@ -663,9 +664,10 @@ function SavingsGoalsView({ goals, handlers }) {
             {goals.length === 0 && <EmptyState illustration={<EmptyPiggyBankIllustration/>} message="No savings goals yet. Create one to get started!"/>}
             <form onSubmit={handleAddGoal} className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl space-y-4">
                 <h3 className="text-xl font-semibold text-white">Create New Savings Goal</h3>
-                <div className="flex gap-4">
+                <div className="flex flex-wrap gap-4">
                     <input type="text" placeholder="Goal Name (e.g., Holiday Fund)" value={item.name} onChange={e => setItem({...item, name: e.target.value})} className="flex-grow bg-slate-700 p-2 rounded-lg" required />
                     <input type="number" placeholder="Target Amount" value={item.targetAmount} onChange={e => setItem({...item, targetAmount: e.target.value})} className="w-48 bg-slate-700 p-2 rounded-lg" required />
+                    <input type="date" value={item.dueDate} onChange={e => setItem({...item, dueDate: e.target.value})} className="bg-slate-700 p-2 rounded-lg" />
                     <button type="submit" className="bg-rose-600 font-bold p-2 rounded-lg">Create Goal</button>
                 </div>
             </form>
@@ -1015,6 +1017,31 @@ function CurrencyConverter() {
                         <p className="text-3xl font-bold text-green-400">{result} {toCurrency}</p>
                     </div>
                 )}
+            </div>
+        </ChartCard>
+    );
+}
+
+// --- NEW SAVINGS GOALS WIDGET ---
+function SavingsGoalsWidget({ goals }) {
+    return (
+        <ChartCard title="Savings Goals">
+            <div className="space-y-4">
+                {goals.slice(0, 3).map(goal => {
+                    const percentage = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
+                    return (
+                        <div key={goal.id}>
+                            <div className="flex justify-between mb-1 text-sm">
+                                <span className="font-medium text-slate-300">{goal.name}</span>
+                                <span className="text-slate-400">{Math.round(percentage)}%</span>
+                            </div>
+                            <div className="w-full bg-slate-700 rounded-full h-2.5">
+                                <div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${Math.min(percentage, 100)}%` }}></div>
+                            </div>
+                        </div>
+                    );
+                })}
+                {goals.length === 0 && <EmptyState illustration={<EmptyPiggyBankIllustration/>} message="No goals set yet."/>}
             </div>
         </ChartCard>
     );
