@@ -3,7 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot, query, setDoc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Legend as RechartsLegend } from 'recharts';
-import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, DollarSign, List, LayoutDashboard, Settings, Search, Download, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck, LogOut, ChevronLeft, ChevronRight, Award } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, DollarSign, List, LayoutDashboard, Settings, Search, Download, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck, LogOut, ChevronLeft, ChevronRight, Award, RefreshCw } from 'lucide-react';
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
@@ -275,15 +275,6 @@ function LoginPage({ auth }) {
     );
 }
 
-// ... The rest of the components (DashboardView, TransactionListView, etc.) remain the same ...
-// --- The rest of the code is unchanged, but included for completeness ---
-
-// --- Navigation Button ---
-const NavButton = ({ icon: Icon, label, activeView, onClick }) => (
-    <button onClick={onClick} className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 ${activeView === label.toLowerCase() ? 'bg-rose-600 text-white' : 'text-slate-300 hover:bg-slate-700'} transition-all duration-200`}>
-        <Icon size={16} /> {label}
-    </button>
-);
 // --- Views ---
 
 function DashboardView({ transactions, allTransactions, budgets, dateRange, setDateRange }) {
@@ -311,6 +302,19 @@ function DashboardView({ transactions, allTransactions, budgets, dateRange, setD
         });
         return Object.entries(trends).map(([name, values]) => ({ name, ...values })).reverse();
     }, [allTransactions]);
+    const savingsRateData = useMemo(() => {
+        const monthlyData = {};
+        allTransactions.forEach(t => {
+            const month = new Date(t.date).toLocaleString('default', { month: 'short', year: '2-digit' });
+            if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+            if (t.type === 'income') monthlyData[month].income += t.amount;
+            else monthlyData[month].expense += t.amount;
+        });
+        return Object.entries(monthlyData).map(([name, { income, expense }]) => ({
+            name,
+            rate: income > 0 ? ((income - expense) / income) * 100 : 0
+        })).slice(-6);
+    }, [allTransactions]);
 
     return (
         <main>
@@ -323,13 +327,15 @@ function DashboardView({ transactions, allTransactions, budgets, dateRange, setD
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <ChartCard title="Monthly Trends (Last 6 Months)"><ResponsiveContainer width="100%" height={300}><LineChart data={trendData}><CartesianGrid strokeDasharray="3 3" stroke="#374151" /><XAxis dataKey="name" tick={{ fill: '#9ca3af' }} /><YAxis tick={{ fill: '#9ca3af' }} tickFormatter={(v) => `£${v.toLocaleString('en-GB')}`} /><Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }} formatter={(v) => `£${v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} /><Legend /><Line type="monotone" dataKey="income" stroke="#4ade80" /><Line type="monotone" dataKey="expense" stroke="#f87171" /></LineChart></ResponsiveContainer></ChartCard>
                 <ChartCard title="Expenses by Category"><ResponsiveContainer width="100%" height={300}><PieChart><Pie data={expenseByCategory} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8">{expenseByCategory.map((e, i) => <Cell key={`cell-${i}`} fill={['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F'][i % 6]} />)}</Pie><Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }} formatter={(v) => `£${v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} /><RechartsLegend /></PieChart></ResponsiveContainer></ChartCard>
+                <ChartCard title="Monthly Savings Rate"><ResponsiveContainer width="100%" height={300}><BarChart data={savingsRateData}><CartesianGrid strokeDasharray="3 3" stroke="#374151" /><XAxis dataKey="name" tick={{ fill: '#9ca3af' }} /><YAxis tick={{ fill: '#9ca3af' }} unit="%" /><Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }} formatter={(v) => `${v.toFixed(2)}%`} /><Bar dataKey="rate" name="Savings Rate" fill="#2dd4bf" /></BarChart></ResponsiveContainer></ChartCard>
+                <CurrencyConverter />
             </div>
             <BudgetStatus budgets={budgets} expenses={expenseByCategory} />
         </main>
     );
 }
 
-function TransactionListView({ transactions, handleDeleteTransaction, searchQuery, setSearchQuery, exportToCsv }) {
+function TransactionListView({ transactions, handleDeleteTransaction, searchQuery, setSearchQuery }) {
     return (
         <div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-4 sm:p-6 rounded-xl shadow-lg">
             <div className="flex justify-between items-center mb-4">
@@ -974,3 +980,72 @@ const EmptyPiggyBankIllustration = () => (
         <path d="M19.7 15.3c-1.2-1.2-2.9-1.2-4.1 0s-1.2 2.9 0 4.1c1.2 1.2 2.9 1.2 4.1 0s1.2-2.9 0-4.1z"/><path d="M11.3 15.3c-1.2-1.2-2.9-1.2-4.1 0s-1.2 2.9 0 4.1c1.2 1.2 2.9 1.2 4.1 0s1.2-2.9 0-4.1z"/><path d="M15.5 15.5c-1.2-1.2-2.9-1.2-4.1 0s-1.2 2.9 0 4.1c1.2 1.2 2.9 1.2 4.1 0s1.2-2.9 0-4.1z"/><path d="M12 3a1 1 0 0 0-1 1v2.5a1 1 0 0 0 2 0V4a1 1 0 0 0-1-1z"/><path d="M12 21a1 1 0 0 0 1-1v-2.5a1 1 0 0 0-2 0V20a1 1 0 0 0 1 1z"/><path d="M3 12a1 1 0 0 0-1 1h2.5a1 1 0 0 0 0-2H2a1 1 0 0 0-1 1z"/><path d="M21 12a1 1 0 0 0 1-1h-2.5a1 1 0 0 0 0 2H22a1 1 0 0 0 1-1z"/>
     </svg>
 );
+
+// --- NEW CURRENCY CONVERTER ---
+function CurrencyConverter() {
+    const [amount, setAmount] = useState(1);
+    const [fromCurrency, setFromCurrency] = useState('GBP');
+    const [toCurrency, setToCurrency] = useState('USD');
+    const [result, setResult] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    const currencies = ['GBP', 'USD', 'EUR', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY'];
+
+    useEffect(() => {
+        if (amount === '' || !fromCurrency || !toCurrency) return;
+        
+        setLoading(true);
+        setError(null);
+        
+        fetch(`https://api.exchangerate-api.com/v4/latest/${fromCurrency}`)
+            .then(res => res.json())
+            .then(data => {
+                const rate = data.rates[toCurrency];
+                setResult((amount * rate).toFixed(2));
+                setLoading(false);
+            })
+            .catch(err => {
+                setError("Could not fetch exchange rates.");
+                setLoading(false);
+                console.error(err);
+            });
+
+    }, [amount, fromCurrency, toCurrency]);
+
+    return (
+        <ChartCard title="Currency Converter">
+            <div className="space-y-4">
+                <div className="flex gap-4 items-end">
+                    <div className="flex-grow">
+                        <label className="block text-sm text-slate-400 mb-1">Amount</label>
+                        <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-slate-700 p-2 rounded-lg" />
+                    </div>
+                    <div>
+                        <label className="block text-sm text-slate-400 mb-1">From</label>
+                        <select value={fromCurrency} onChange={e => setFromCurrency(e.target.value)} className="w-full bg-slate-700 p-2 rounded-lg">
+                            {currencies.map(c => <option key={c}>{c}</option>)}
+                        </select>
+                    </div>
+                    <div className="p-2">
+                        <RefreshCw size={20} className="text-slate-400" />
+                    </div>
+                    <div>
+                        <label className="block text-sm text-slate-400 mb-1">To</label>
+                        <select value={toCurrency} onChange={e => setToCurrency(e.target.value)} className="w-full bg-slate-700 p-2 rounded-lg">
+                            {currencies.map(c => <option key={c}>{c}</option>)}
+                        </select>
+                    </div>
+                </div>
+                {loading && <div className="text-center">Loading...</div>}
+                {error && <div className="text-center text-red-400">{error}</div>}
+                {result && !loading && (
+                    <div className="text-center bg-slate-700/50 p-4 rounded-lg">
+                        <p className="text-slate-400">{amount} {fromCurrency} =</p>
+                        <p className="text-3xl font-bold text-green-400">{result} {toCurrency}</p>
+                    </div>
+                )}
+            </div>
+        </ChartCard>
+    );
+}
