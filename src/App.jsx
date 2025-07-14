@@ -959,7 +959,7 @@ function CurrencyConverter() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    const currencies = ['GBP', 'USD', 'EUR', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY'];
+    const currencies = ['GBP', 'USD', 'EUR', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'];
 
     useEffect(() => {
         if (amount === '' || !fromCurrency || !toCurrency) return;
