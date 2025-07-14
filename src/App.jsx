@@ -3,7 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot, query, setDoc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Legend as RechartsLegend } from 'recharts';
-import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, DollarSign, List, LayoutDashboard, Settings, Search, Download, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, DollarSign, List, LayoutDashboard, Settings, Search, Download, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck, LogOut, ChevronLeft, ChevronRight, Award } from 'lucide-react';
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
@@ -43,7 +43,7 @@ export default function App() {
     }, []);
 
     if (loadingAuth) {
-        return <div className="flex items-center justify-center h-screen bg-slate-900"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div>;
+        return <div className="flex items-center justify-center h-screen bg-slate-900"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-teal-500"></div></div>;
     }
 
     if (!user) {
@@ -66,6 +66,7 @@ function BudgetApp({ user, auth }) {
     const [assets, setAssets] = useState([]);
     const [liabilities, setLiabilities] = useState([]);
     const [savingsGoals, setSavingsGoals] = useState([]);
+    const [achievements, setAchievements] = useState({});
     
     const [loadingData, setLoadingData] = useState(true);
     const [error, setError] = useState(null);
@@ -93,6 +94,7 @@ function BudgetApp({ user, auth }) {
             { path: `users/${userId}/assets`, setter: setAssets },
             { path: `users/${userId}/liabilities`, setter: setLiabilities },
             { path: `users/${userId}/savingsGoals`, setter: setSavingsGoals },
+            { path: `users/${userId}/achievements`, setter: setAchievements, isDoc: true },
             { path: `users/${userId}/settings/budgets`, setter: setBudgets, isDoc: true },
             { path: `users/${userId}/settings/categories`, setter: setCategories, isDoc: true, default: { expense: ['Bills', 'Food', 'Health', 'Transport', 'Subscriptions', 'Entertainment', 'Shopping', 'Other'], income: ['Salary', 'Bonus', 'Freelance', 'Gift', 'Other'] } }
         ];
@@ -173,7 +175,7 @@ function BudgetApp({ user, auth }) {
         <div className="bg-slate-900 text-white min-h-screen font-sans p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
                 <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-                    <div><h1 className="text-3xl font-bold text-white">Fin.ai</h1><p className="text-slate-400 mt-1">Welcome, {user.displayName || user.email}!</p></div>
+                    <div><h1 className="text-3xl font-bold text-white">Penny</h1><p className="text-slate-400 mt-1">Welcome, {user.displayName || user.email}!</p></div>
                     <div className="flex items-center space-x-2 mt-4 sm:mt-0">
                         <div className="flex items-center bg-slate-800 rounded-lg p-1 flex-wrap">
                             <NavButton icon={LayoutDashboard} label="Dashboard" activeView={activeView} onClick={() => setActiveView('dashboard')} />
@@ -183,6 +185,7 @@ function BudgetApp({ user, auth }) {
                             <NavButton icon={Banknote} label="Net Worth" activeView={activeView} onClick={() => setActiveView('net worth')} />
                             <NavButton icon={Target} label="Goals" activeView={activeView} onClick={() => setActiveView('goals')} />
                             <NavButton icon={ShieldCheck} label="Debt" activeView={activeView} onClick={() => setActiveView('debt')} />
+                            <NavButton icon={Award} label="Achievements" activeView={activeView} onClick={() => setActiveView('achievements')} />
                             <NavButton icon={Bot} label="Coach" activeView={activeView} onClick={() => setActiveView('coach')} />
                             <NavButton icon={Settings} label="Settings" activeView={activeView} onClick={() => setActiveView('settings')} />
                         </div>
@@ -190,10 +193,10 @@ function BudgetApp({ user, auth }) {
                     </div>
                 </header>
                 <div className="mb-6">
-                    <button onClick={() => setIsAddTxDialogOpen(true)} className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-lg shadow-indigo-600/20"><Plus size={20} /><span>Add New Transaction</span></button>
+                    <button onClick={() => setIsAddTxDialogOpen(true)} className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg shadow-teal-600/20"><Plus size={20} /><span>Add New Transaction</span></button>
                 </div>
 
-                {loadingData ? <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div> : (
+                {loadingData ? <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-teal-500"></div></div> : (
                     <>
                         {activeView === 'dashboard' && <DashboardView transactions={filteredTransactions} allTransactions={transactions} budgets={budgets} dateRange={dateRange} setDateRange={setDateRange} />}
                         {activeView === 'transactions' && <TransactionListView transactions={filteredTransactions} handleDeleteTransaction={transactionHandlers.delete} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}
@@ -202,6 +205,7 @@ function BudgetApp({ user, auth }) {
                         {activeView === 'net worth' && <NetWorthView assets={assets} liabilities={liabilities} handlers={{asset: assetHandlers, liability: liabilityHandlers}} />}
                         {activeView === 'goals' && <SavingsGoalsView goals={savingsGoals} handlers={savingsGoalHandlers} />}
                         {activeView === 'debt' && <DebtPlannerView liabilities={liabilities} />}
+                        {activeView === 'achievements' && <AchievementsView achievements={achievements} />}
                         {activeView === 'coach' && <FinancialCoachView transactions={transactions} budgets={budgets} subscriptions={subscriptions} />}
                         {activeView === 'settings' && <SettingsView initialBudgets={budgets} initialCategories={categories} onSave={handleSaveSettings} subscriptions={subscriptions} />}
                     </>
@@ -247,22 +251,22 @@ function LoginPage({ auth }) {
     return (
         <div className="bg-slate-900 min-h-screen flex items-center justify-center">
             <div className="w-full max-w-md bg-slate-800 p-8 rounded-xl shadow-lg">
-                <h1 className="text-4xl font-bold text-white text-center mb-2">Fin.ai</h1>
+                <h1 className="text-4xl font-bold text-white text-center mb-2">Penny</h1>
                 <p className="text-slate-400 text-center mb-8">{isSignUp ? 'Create an account to start tracking.' : 'Welcome back! Please sign in.'}</p>
                 {error && <p className="bg-red-900 border border-red-600 text-red-300 p-3 rounded-lg mb-4">{error}</p>}
                 <form onSubmit={handleEmailPassword} className="space-y-4">
                     <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-slate-700 p-3 rounded-lg text-white" required />
                     <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-slate-700 p-3 rounded-lg text-white" required />
-                    <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg">{isSignUp ? 'Sign Up' : 'Sign In'}</button>
+                    <button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold p-3 rounded-lg transition-all duration-300 transform hover:scale-105">{isSignUp ? 'Sign Up' : 'Sign In'}</button>
                 </form>
                 <div className="my-6 flex items-center"><div className="flex-grow bg-slate-700 h-px"></div><span className="mx-4 text-slate-500">OR</span><div className="flex-grow bg-slate-700 h-px"></div></div>
-                <button onClick={handleGoogleSignIn} className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold p-3 rounded-lg flex items-center justify-center gap-2">
+                <button onClick={handleGoogleSignIn} className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold p-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-300 transform hover:scale-105">
                     <svg className="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C39.99,35.508,44,29.891,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
                     Sign in with Google
                 </button>
                 <p className="text-center text-slate-400 mt-6">
                     {isSignUp ? 'Already have an account?' : "Don't have an account?"}
-                    <button onClick={() => setIsSignUp(!isSignUp)} className="text-indigo-400 hover:text-indigo-300 font-bold ml-2">
+                    <button onClick={() => setIsSignUp(!isSignUp)} className="text-teal-400 hover:text-teal-300 font-bold ml-2">
                         {isSignUp ? 'Sign In' : 'Sign Up'}
                     </button>
                 </p>
@@ -271,9 +275,12 @@ function LoginPage({ auth }) {
     );
 }
 
+// ... The rest of the components (DashboardView, TransactionListView, etc.) remain the same ...
+// --- The rest of the code is unchanged, but included for completeness ---
+
 // --- Navigation Button ---
 const NavButton = ({ icon: Icon, label, activeView, onClick }) => (
-    <button onClick={onClick} className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 ${activeView === label.toLowerCase() ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>
+    <button onClick={onClick} className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 ${activeView === label.toLowerCase() ? 'bg-teal-600 text-white' : 'text-slate-300 hover:bg-slate-700'} transition-all duration-200`}>
         <Icon size={16} /> {label}
     </button>
 );
@@ -328,7 +335,7 @@ function TransactionListView({ transactions, handleDeleteTransaction, searchQuer
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-white">All Transactions</h2>
                 <div className="flex items-center gap-2">
-                    <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-slate-700 border border-slate-600 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+                    <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-slate-700 border border-slate-600 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-teal-500" /></div>
                     <button onClick={exportToCsv} className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"><Download size={16} /> Export CSV</button>
                 </div>
             </div>
@@ -343,7 +350,7 @@ function SubscriptionsView({ subscriptions, onAdd, onDelete }) {
         <div className="bg-slate-800 p-6 rounded-xl shadow-lg">
             <div className="flex justify-between items-center mb-6">
                 <div><h2 className="text-2xl font-semibold text-white">Subscriptions & Bills</h2><p className="text-slate-400 mt-1">Total Monthly Cost: <span className="font-bold text-sky-400">£{totalMonthlyCost.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p></div>
-                <button onClick={onAdd} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"><Plus size={16} /> Add New</button>
+                <button onClick={onAdd} className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"><Plus size={16} /> Add New</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {subscriptions.sort((a,b) => a.name.localeCompare(b.name)).map(sub => (
@@ -407,7 +414,7 @@ function SettingsView({ initialBudgets, initialCategories, onSave, subscriptions
                     <div className="flex gap-2 mb-4">
                         <input type="text" placeholder="New category name" value={newCat.name} onChange={e => setNewCat(p => ({...p, name: e.target.value}))} className="flex-grow bg-slate-700 border border-slate-600 rounded-lg p-2 text-white" />
                         <select value={newCat.type} onChange={e => setNewCat(p => ({...p, type: e.target.value}))} className="bg-slate-700 border border-slate-600 rounded-lg p-2 text-white"><option value="expense">Expense</option><option value="income">Income</option></select>
-                        <button onClick={handleAddCategory} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2 rounded-lg">Add</button>
+                        <button onClick={handleAddCategory} className="bg-teal-600 hover:bg-teal-700 text-white font-bold p-2 rounded-lg">Add</button>
                     </div>
                     <div className="space-y-4">
                         <div><h4 className="text-lg font-medium text-slate-300 mb-2">Expense Categories</h4><div className="flex flex-wrap gap-2">{(categories.expense || []).map(cat => (<span key={cat} className="bg-slate-700 px-3 py-1 text-sm rounded-full flex items-center gap-2">{cat} <button onClick={() => handleRemoveCategory('expense', cat)} className="text-red-400 hover:text-red-300">&times;</button></span>))}</div></div>
@@ -479,7 +486,7 @@ function FinancialCoachView({ transactions, budgets, subscriptions }) {
                 <p className="text-slate-400 mb-6">Ask anything about your finances, from saving tips to budget analysis.</p>
                 <div className="space-y-4">
                     <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="e.g., How can I save more money on groceries?" rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-lg p-2 text-white"></textarea>
-                    <button onClick={() => handleAskCoach(false)} disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-slate-600">
+                    <button onClick={() => handleAskCoach(false)} disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-slate-600">
                         <Sparkles size={16} /> {isLoading ? 'Thinking...' : 'Ask Your Coach'}
                     </button>
                 </div>
@@ -496,7 +503,7 @@ function FinancialCoachView({ transactions, budgets, subscriptions }) {
                 </div>
             </div>
 
-            {isLoading && <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div></div>}
+            {isLoading && <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500"></div></div>}
             {answer && <div className="bg-slate-700/50 p-4 rounded-lg prose prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: answer.replace(/\n/g, '<br />') }}></div>}
         </div>
     );
@@ -552,7 +559,7 @@ function NetWorthView({ assets, liabilities, handlers }) {
                             <input type="number" placeholder="Min. Payment" value={item.minimumPayment} onChange={e => setItem({...item, minimumPayment: e.target.value})} className="w-32 bg-slate-700 border border-slate-600 rounded-lg p-2 text-white" />
                         </>
                     )}
-                    <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2 rounded-lg">Add Item</button>
+                    <button type="submit" className="bg-teal-600 hover:bg-teal-700 text-white font-bold p-2 rounded-lg">Add Item</button>
                 </div>
             </form>
         </div>
@@ -637,7 +644,7 @@ function SavingsGoalsView({ goals, handlers }) {
                 <div className="flex gap-4">
                     <input type="text" placeholder="Goal Name (e.g., Holiday Fund)" value={item.name} onChange={e => setItem({...item, name: e.target.value})} className="flex-grow bg-slate-700 p-2 rounded-lg" required />
                     <input type="number" placeholder="Target Amount" value={item.targetAmount} onChange={e => setItem({...item, targetAmount: e.target.value})} className="w-48 bg-slate-700 p-2 rounded-lg" required />
-                    <button type="submit" className="bg-indigo-600 font-bold p-2 rounded-lg">Create Goal</button>
+                    <button type="submit" className="bg-teal-600 font-bold p-2 rounded-lg">Create Goal</button>
                 </div>
             </form>
         </div>
@@ -704,7 +711,7 @@ function DebtPlannerView({ liabilities }) {
                 <div className="flex flex-wrap gap-4 items-center">
                     <div><label className="block text-sm text-slate-400">Strategy</label><select value={strategy} onChange={e => setStrategy(e.target.value)} className="bg-slate-700 p-2 rounded-lg"><option value="avalanche">Avalanche (Highest Interest)</option><option value="snowball">Snowball (Lowest Balance)</option></select></div>
                     <div><label className="block text-sm text-slate-400">Extra Monthly Payment (£)</label><input type="number" value={extraPayment} onChange={e => setExtraPayment(parseFloat(e.target.value))} className="bg-slate-700 p-2 rounded-lg w-32" /></div>
-                    <button onClick={calculatePaydown} className="bg-indigo-600 self-end font-bold p-2 rounded-lg">Calculate</button>
+                    <button onClick={calculatePaydown} className="bg-teal-600 self-end font-bold p-2 rounded-lg">Calculate</button>
                 </div>
             </div>
             {schedule && (
@@ -773,7 +780,7 @@ function AddTransactionDialog({ categories, onClose, onAdd }) {
                     <div><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="description">Description</label><div className="flex gap-2"><input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g., Weekly shop at Tesco" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /><button type="button" onClick={handleSuggestCategory} disabled={isSuggesting || type === 'income'} className="flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-3 rounded-lg disabled:bg-slate-600"><Sparkles size={16} /></button></div></div>
                     <div><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="category">Category</label><select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white">{(type === 'expense' ? categories.expense : categories.income).map(cat => (<option key={cat} value={cat}>{cat}</option>))}</select></div>
                     <div><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="date">Date</label><input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div>
-                    <div className="flex justify-end gap-4 pt-4"><button type="button" onClick={onClose} className="py-2 px-4 bg-slate-600 hover:bg-slate-500 text-slate-200 font-bold rounded-lg">Cancel</button><button type="submit" className="py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg">Add Transaction</button></div>
+                    <div className="flex justify-end gap-4 pt-4"><button type="button" onClick={onClose} className="py-2 px-4 bg-slate-600 hover:bg-slate-500 text-slate-200 font-bold rounded-lg">Cancel</button><button type="submit" className="py-2 px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg">Add Transaction</button></div>
                 </form>
             </div>
         </div>
@@ -789,12 +796,12 @@ function AddSubscriptionDialog({ onClose, onAdd }) {
         } 
         await onAdd({ name, amount, category }); 
     };
-    return (<div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"><div className="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-md m-4"><h2 className="text-2xl font-bold mb-6 text-white">Add Subscription or Bill</h2><form onSubmit={handleSubmit}><div className="mb-4"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-name">Name</label><input id="sub-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Netflix" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div><div className="mb-4"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-amount">Amount (£)</label><input id="sub-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div><div className="mb-6"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-category">Category</label><select id="sub-category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white"><option value="Subscriptions">Subscriptions</option><option value="Bills">Bills</option></select></div><div className="flex justify-end gap-4 mt-8"><button type="button" onClick={onClose} className="py-2 px-4 bg-slate-600 hover:bg-slate-500 text-slate-200 font-bold rounded-lg">Cancel</button><button type="submit" className="py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg">Add Subscription</button></div></form></div></div>);
+    return (<div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"><div className="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-md m-4"><h2 className="text-2xl font-bold mb-6 text-white">Add Subscription or Bill</h2><form onSubmit={handleSubmit}><div className="mb-4"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-name">Name</label><input id="sub-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Netflix" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div><div className="mb-4"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-amount">Amount (£)</label><input id="sub-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div><div className="mb-6"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-category">Category</label><select id="sub-category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white"><option value="Subscriptions">Subscriptions</option><option value="Bills">Bills</option></select></div><div className="flex justify-end gap-4 mt-8"><button type="button" onClick={onClose} className="py-2 px-4 bg-slate-600 hover:bg-slate-500 text-slate-200 font-bold rounded-lg">Cancel</button><button type="submit" className="py-2 px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg">Add Subscription</button></div></form></div></div>);
 }
 function DateRangeFilter({ dateRange, setDateRange }) {
     const setThisMonth = () => { const now = new Date(); setDateRange({ start: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0], end: new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0] }); };
     const setLastMonth = () => { const now = new Date(); setDateRange({ start: new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0], end: new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0] }); };
-    return (<div className="bg-slate-800 p-4 rounded-xl mb-8 flex flex-col sm:flex-row items-center gap-4"><div className="flex items-center gap-2"><button onClick={setThisMonth} className="bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg text-sm">This Month</button><button onClick={setLastMonth} className="bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg text-sm">Last Month</button></div><div className="flex items-center gap-2"><input type="date" value={dateRange.start || ''} onChange={e => setDateRange(p => ({...p, start: e.target.value}))} className="bg-slate-700 border border-slate-600 rounded-lg p-2 text-white" /><span className="text-slate-400">to</span><input type="date" value={dateRange.end || ''} onChange={e => setDateRange(p => ({...p, end: e.target.value}))} className="bg-slate-700 border border-slate-600 rounded-lg p-2 text-white" /></div><button onClick={() => setDateRange({start: null, end: null})} className="text-indigo-400 hover:text-indigo-300 text-sm font-medium">Clear Filter</button></div>);
+    return (<div className="bg-slate-800 p-4 rounded-xl mb-8 flex flex-col sm:flex-row items-center gap-4"><div className="flex items-center gap-2"><button onClick={setThisMonth} className="bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg text-sm">This Month</button><button onClick={setLastMonth} className="bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg text-sm">Last Month</button></div><div className="flex items-center gap-2"><input type="date" value={dateRange.start || ''} onChange={e => setDateRange(p => ({...p, start: e.target.value}))} className="bg-slate-700 border border-slate-600 rounded-lg p-2 text-white" /><span className="text-slate-400">to</span><input type="date" value={dateRange.end || ''} onChange={e => setDateRange(p => ({...p, end: e.target.value}))} className="bg-slate-700 border border-slate-600 rounded-lg p-2 text-white" /></div><button onClick={() => setDateRange({start: null, end: null})} className="text-teal-400 hover:text-teal-300 text-sm font-medium">Clear Filter</button></div>);
 }
 function BudgetStatus({ budgets, expenses }) {
     const budgetData = useMemo(() => Object.entries(budgets).map(([cat, bud]) => { const spent = expenses.find(e => e.name === cat)?.value || 0; return { cat, bud, spent, percentage: bud > 0 ? (spent / bud) * 100 : 0 }; }).filter(b => b.bud > 0), [budgets, expenses]);
@@ -906,6 +913,37 @@ function CalendarView({ transactions, subscriptions }) {
                     <div key={day} className="text-center font-semibold p-2 bg-slate-800">{day}</div>
                 ))}
                 {calendarDays}
+            </div>
+        </div>
+    );
+}
+
+// --- NEW ACHIEVEMENTS VIEW ---
+function AchievementsView({ achievements }) {
+    const allBadges = [
+        { id: 'dailyLogin', name: 'Daily Login', description: 'Log in for the first time today.', icon: <LogOut/> },
+        { id: 'onARoll', name: 'On a Roll', description: 'Log in 3 days in a row.', icon: <Repeat/> },
+        { id: 'noSpendDay', name: 'No-Spend Day', description: 'Go a full day without any expenses.', icon: <ShieldCheck/> },
+        { id: 'budgetBoss', name: 'Budget Boss', description: 'Stay under budget for a whole month.', icon: <Target/> },
+        { id: 'goalGetter', name: 'Goal Getter', description: 'Successfully complete a savings goal.', icon: <Award/> },
+    ];
+
+    return (
+        <div className="bg-slate-800 p-6 rounded-xl">
+            <h2 className="text-2xl font-semibold text-white mb-6">Your Achievements</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {allBadges.map(badge => {
+                    const isEarned = achievements[badge.id];
+                    return (
+                        <div key={badge.id} className={`p-6 rounded-xl text-center transition-all duration-300 ${isEarned ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/20' : 'bg-slate-700 text-slate-400'}`}>
+                            <div className={`mx-auto w-16 h-16 mb-4 rounded-full flex items-center justify-center ${isEarned ? 'bg-white/20' : 'bg-slate-600'}`}>
+                                {React.cloneElement(badge.icon, { size: 32, className: isEarned ? 'text-white' : 'text-slate-500' })}
+                            </div>
+                            <h3 className={`font-bold ${isEarned ? 'text-white' : 'text-slate-300'}`}>{badge.name}</h3>
+                            <p className="text-xs mt-1">{badge.description}</p>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
