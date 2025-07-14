@@ -94,7 +94,7 @@ function BudgetApp({ user, auth }) {
             { path: `users/${userId}/assets`, setter: setAssets },
             { path: `users/${userId}/liabilities`, setter: setLiabilities },
             { path: `users/${userId}/savingsGoals`, setter: setSavingsGoals },
-            { path: `users/${userId}/achievements`, setter: setAchievements, isDoc: true },
+            { path: `users/${userId}/settings/achievements`, setter: setAchievements, isDoc: true },
             { path: `users/${userId}/settings/budgets`, setter: setBudgets, isDoc: true },
             { path: `users/${userId}/settings/categories`, setter: setCategories, isDoc: true, default: { expense: ['Bills', 'Food', 'Health', 'Transport', 'Subscriptions', 'Entertainment', 'Shopping', 'Other'], income: ['Salary', 'Bonus', 'Freelance', 'Gift', 'Other'] } }
         ];
