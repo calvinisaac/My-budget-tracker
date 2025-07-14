@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot, query, setDoc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Legend as RechartsLegend } from 'recharts';
-import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, DollarSign, List, LayoutDashboard, Settings, Search, Download, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, DollarSign, List, LayoutDashboard, Settings, Search, Download, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // --- Firebase Configuration ---
-// This now reads from environment variables for security.
-// For local development, it uses a .env file. For deployment, it uses variables set in the hosting provider (e.g., Netlify).
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_API_KEY,
   authDomain: import.meta.env.VITE_AUTH_DOMAIN,
@@ -22,19 +20,42 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 // --- Main App Component ---
 export default function App() {
     // --- Configuration Check ---
-    if (!firebaseConfig.apiKey) {
-        return <FirebaseConfigError />;
-    }
-    if (!GEMINI_API_KEY) {
-        return <GeminiConfigError />;
-    }
+    if (!firebaseConfig.apiKey) return <FirebaseConfigError />;
+    if (!GEMINI_API_KEY) return <GeminiConfigError />;
 
     // --- State Management ---
-    const [db, setDb] = useState(null);
     const [auth, setAuth] = useState(null);
-    const [userId, setUserId] = useState(null);
-    const [isAuthReady, setIsAuthReady] = useState(false);
+    const [user, setUser] = useState(null);
+    const [loadingAuth, setLoadingAuth] = useState(true);
 
+    // --- Firebase Initialization and Auth Listener ---
+    useEffect(() => {
+        const app = initializeApp(firebaseConfig);
+        const firebaseAuth = getAuth(app);
+        setAuth(firebaseAuth);
+
+        const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
+            setUser(user);
+            setLoadingAuth(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    if (loadingAuth) {
+        return <div className="flex items-center justify-center h-screen bg-slate-900"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div>;
+    }
+
+    if (!user) {
+        return <LoginPage auth={auth} />;
+    }
+
+    return <BudgetApp user={user} auth={auth} />;
+}
+
+// --- Budget App Component (The main app after login) ---
+function BudgetApp({ user, auth }) {
+    const [db, setDb] = useState(null);
     const [transactions, setTransactions] = useState([]);
     const [subscriptions, setSubscriptions] = useState([]);
     const [budgets, setBudgets] = useState({});
@@ -46,7 +67,7 @@ export default function App() {
     const [liabilities, setLiabilities] = useState([]);
     const [savingsGoals, setSavingsGoals] = useState([]);
     
-    const [loading, setLoading] = useState(true);
+    const [loadingData, setLoadingData] = useState(true);
     const [error, setError] = useState(null);
     
     const [activeView, setActiveView] = useState('dashboard');
@@ -56,35 +77,16 @@ export default function App() {
     const [dateRange, setDateRange] = useState({ start: null, end: null });
     const [searchQuery, setSearchQuery] = useState('');
 
-    // --- Firebase Initialization and Auth ---
     useEffect(() => {
-        try {
-            const app = initializeApp(firebaseConfig);
-            const firestoreDb = getFirestore(app);
-            const firebaseAuth = getAuth(app);
-            setDb(firestoreDb);
-            setAuth(firebaseAuth);
-
-            const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
-                if (user) setUserId(user.uid);
-                else {
-                    try { await signInAnonymously(firebaseAuth); } 
-                    catch (authError) { console.error("Authentication failed:", authError); setError("Could not authenticate."); }
-                }
-                setIsAuthReady(true);
-            });
-            return () => unsubscribe();
-        } catch (e) {
-            console.error("Error initializing Firebase:", e);
-            setError("Failed to connect to the database.");
-            setLoading(false);
-        }
+        const firestoreDb = getFirestore(initializeApp(firebaseConfig));
+        setDb(firestoreDb);
     }, []);
 
     // --- Data Fetching ---
     useEffect(() => {
-        if (!isAuthReady || !db || !userId) return;
-        setLoading(true);
+        if (!db || !user) return;
+        setLoadingData(true);
+        const userId = user.uid;
         const collectionsToFetch = [
             { path: `users/${userId}/transactions`, setter: setTransactions, transform: d => ({ ...d, date: d.date?.toDate ? d.date.toDate() : new Date(d.date) }) },
             { path: `users/${userId}/subscriptions`, setter: setSubscriptions },
@@ -103,9 +105,9 @@ export default function App() {
                 }
             }, (err) => { console.error(`Error fetching ${path}:`, err); setError(`Failed to load ${path}.`); })
         );
-        setLoading(false);
+        setLoadingData(false);
         return () => unsubscribes.forEach(unsub => unsub());
-    }, [isAuthReady, db, userId]);
+    }, [db, user]);
 
     // --- Filtered Transactions ---
     const filteredTransactions = useMemo(() => transactions.filter(t => {
@@ -119,32 +121,28 @@ export default function App() {
     // --- CRUD Handlers ---
     const createCrudHandlers = (collectionName) => ({
         add: async (item) => {
-            if (!db || !userId) return;
+            if (!db || !user) return;
             try { 
-                // Create a copy to avoid mutating the original item object
                 const itemToAdd = { ...item };
-
-                // Convert specific fields to their correct types before saving
                 if (itemToAdd.amount) itemToAdd.amount = parseFloat(itemToAdd.amount);
                 if (itemToAdd.date) itemToAdd.date = new Date(itemToAdd.date);
                 if (itemToAdd.value) itemToAdd.value = parseFloat(itemToAdd.value);
                 if (itemToAdd.targetAmount) itemToAdd.targetAmount = parseFloat(itemToAdd.targetAmount);
                 if (itemToAdd.interestRate) itemToAdd.interestRate = parseFloat(itemToAdd.interestRate);
                 if (itemToAdd.minimumPayment) itemToAdd.minimumPayment = parseFloat(itemToAdd.minimumPayment);
-
-                await addDoc(collection(db, `users/${userId}/${collectionName}`), itemToAdd); 
+                await addDoc(collection(db, `users/${user.uid}/${collectionName}`), itemToAdd); 
             } 
             catch (err) { console.error(`Error adding ${collectionName}:`, err); }
         },
         update: async (id, updates) => {
-            if (!db || !userId) return;
-            try { await updateDoc(doc(db, `users/${userId}/${collectionName}`, id), updates); } 
+            if (!db || !user) return;
+            try { await updateDoc(doc(db, `users/${user.uid}/${collectionName}`, id), updates); } 
             catch (err) { console.error(`Error updating ${collectionName}:`, err); }
         },
         delete: async (id) => {
-            if (!db || !userId) return;
+            if (!db || !user) return;
             if (window.confirm("Are you sure?")) {
-                try { await deleteDoc(doc(db, `users/${userId}/${collectionName}`, id)); } 
+                try { await deleteDoc(doc(db, `users/${user.uid}/${collectionName}`, id)); } 
                 catch (err) { console.error(`Error deleting ${collectionName}:`, err); }
             }
         },
@@ -157,25 +155,16 @@ export default function App() {
     const savingsGoalHandlers = createCrudHandlers('savingsGoals');
 
     const handleSaveSettings = async (newBudgets, newCategories) => {
-        if (!db || !userId) return;
+        if (!db || !user) return;
         const batch = writeBatch(db);
-        batch.set(doc(db, `users/${userId}/settings/budgets`), newBudgets, { merge: true });
-        batch.set(doc(db, `users/${userId}/settings/categories`), newCategories);
+        batch.set(doc(db, `users/${user.uid}/settings/budgets`), newBudgets, { merge: true });
+        batch.set(doc(db, `users/${user.uid}/settings/categories`), newCategories);
         try { await batch.commit(); alert("Settings saved!"); } 
         catch (e) { console.error("Error saving settings:", e); setError("Could not save settings."); }
     };
 
-    const exportToCsv = () => {
-        const headers = ["Date", "Description", "Category", "Type", "Amount"];
-        const rows = filteredTransactions.map(t => [ new Date(t.date).toLocaleDateString('en-GB'), `"${t.description.replace(/"/g, '""')}"`, t.category, t.type, t.amount ].join(','));
-        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "transactions.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const handleLogout = () => {
+        signOut(auth).catch(error => console.error("Logout Error:", error));
     };
 
     if (error) return <div className="flex items-center justify-center h-screen bg-slate-900 text-red-400">{error}</div>;
@@ -184,11 +173,12 @@ export default function App() {
         <div className="bg-slate-900 text-white min-h-screen font-sans p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
                 <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-                    <div><h1 className="text-3xl font-bold text-white">Budget Dashboard</h1><p className="text-slate-400 mt-1">Welcome back! Here's your financial overview.</p></div>
+                    <div><h1 className="text-3xl font-bold text-white">Penny</h1><p className="text-slate-400 mt-1">Welcome, {user.displayName || user.email}!</p></div>
                     <div className="flex items-center space-x-2 mt-4 sm:mt-0">
                         <div className="flex items-center bg-slate-800 rounded-lg p-1 flex-wrap">
                             <NavButton icon={LayoutDashboard} label="Dashboard" activeView={activeView} onClick={() => setActiveView('dashboard')} />
                             <NavButton icon={List} label="Transactions" activeView={activeView} onClick={() => setActiveView('transactions')} />
+                            <NavButton icon={Calendar} label="Calendar" activeView={activeView} onClick={() => setActiveView('calendar')} />
                             <NavButton icon={Repeat} label="Subscriptions" activeView={activeView} onClick={() => setActiveView('subscriptions')} />
                             <NavButton icon={Banknote} label="Net Worth" activeView={activeView} onClick={() => setActiveView('net worth')} />
                             <NavButton icon={Target} label="Goals" activeView={activeView} onClick={() => setActiveView('goals')} />
@@ -196,14 +186,15 @@ export default function App() {
                             <NavButton icon={Bot} label="Coach" activeView={activeView} onClick={() => setActiveView('coach')} />
                             <NavButton icon={Settings} label="Settings" activeView={activeView} onClick={() => setActiveView('settings')} />
                         </div>
-                        <button onClick={() => setIsAddTxDialogOpen(true)} className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-lg shadow-indigo-600/20"><Plus size={20} /><span>Add Transaction</span></button>
+                        <button onClick={handleLogout} className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg"><LogOut size={16} /><span>Logout</span></button>
                     </div>
                 </header>
 
-                {loading ? <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div> : (
+                {loadingData ? <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div> : (
                     <>
                         {activeView === 'dashboard' && <DashboardView transactions={filteredTransactions} allTransactions={transactions} budgets={budgets} dateRange={dateRange} setDateRange={setDateRange} />}
-                        {activeView === 'transactions' && <TransactionListView transactions={filteredTransactions} handleDeleteTransaction={transactionHandlers.delete} searchQuery={searchQuery} setSearchQuery={setSearchQuery} exportToCsv={exportToCsv} />}
+                        {activeView === 'transactions' && <TransactionListView transactions={filteredTransactions} handleDeleteTransaction={transactionHandlers.delete} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}
+                        {activeView === 'calendar' && <CalendarView transactions={transactions} subscriptions={subscriptions} />}
                         {activeView === 'subscriptions' && <SubscriptionsView subscriptions={subscriptions} onAdd={() => setIsAddSubDialogOpen(true)} onDelete={subscriptionHandlers.delete} />}
                         {activeView === 'net worth' && <NetWorthView assets={assets} liabilities={liabilities} handlers={{asset: assetHandlers, liability: liabilityHandlers}} />}
                         {activeView === 'goals' && <SavingsGoalsView goals={savingsGoals} handlers={savingsGoalHandlers} />}
@@ -213,24 +204,73 @@ export default function App() {
                     </>
                 )}
             </div>
-            {isAddTxDialogOpen && <AddTransactionDialog 
-                categories={categories} 
-                onClose={() => setIsAddTxDialogOpen(false)} 
-                onAdd={async (transaction) => {
-                    await transactionHandlers.add(transaction);
-                    setIsAddTxDialogOpen(false);
-                }} 
-            />}
-            {isAddSubDialogOpen && <AddSubscriptionDialog 
-                onClose={() => setIsAddSubDialogOpen(false)} 
-                onAdd={async (subscription) => {
-                    await subscriptionHandlers.add(subscription);
-                    setIsAddSubDialogOpen(false);
-                }} 
-            />}
+            {isAddTxDialogOpen && <AddTransactionDialog categories={categories} onClose={() => setIsAddTxDialogOpen(false)} onAdd={async (transaction) => { await transactionHandlers.add(transaction); setIsAddTxDialogOpen(false); }} />}
+            {isAddSubDialogOpen && <AddSubscriptionDialog onClose={() => setIsAddSubDialogOpen(false)} onAdd={async (subscription) => { await subscriptionHandlers.add(subscription); setIsAddSubDialogOpen(false); }} />}
         </div>
     );
 }
+
+// --- Login Page Component ---
+function LoginPage({ auth }) {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [isSignUp, setIsSignUp] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleEmailPassword = async (e) => {
+        e.preventDefault();
+        setError('');
+        try {
+            if (isSignUp) {
+                await createUserWithEmailAndPassword(auth, email, password);
+            } else {
+                await signInWithEmailAndPassword(auth, email, password);
+            }
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    const handleGoogleSignIn = async () => {
+        setError('');
+        try {
+            const provider = new GoogleAuthProvider();
+            await signInWithPopup(auth, provider);
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    return (
+        <div className="bg-slate-900 min-h-screen flex items-center justify-center">
+            <div className="w-full max-w-md bg-slate-800 p-8 rounded-xl shadow-lg">
+                <h1 className="text-4xl font-bold text-white text-center mb-2">Penny</h1>
+                <p className="text-slate-400 text-center mb-8">{isSignUp ? 'Create an account to start tracking.' : 'Welcome back! Please sign in.'}</p>
+                {error && <p className="bg-red-900 border border-red-600 text-red-300 p-3 rounded-lg mb-4">{error}</p>}
+                <form onSubmit={handleEmailPassword} className="space-y-4">
+                    <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-slate-700 p-3 rounded-lg text-white" required />
+                    <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-slate-700 p-3 rounded-lg text-white" required />
+                    <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg">{isSignUp ? 'Sign Up' : 'Sign In'}</button>
+                </form>
+                <div className="my-6 flex items-center"><div className="flex-grow bg-slate-700 h-px"></div><span className="mx-4 text-slate-500">OR</span><div className="flex-grow bg-slate-700 h-px"></div></div>
+                <button onClick={handleGoogleSignIn} className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold p-3 rounded-lg flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C39.99,35.508,44,29.891,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+                    Sign in with Google
+                </button>
+                <p className="text-center text-slate-400 mt-6">
+                    {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+                    <button onClick={() => setIsSignUp(!isSignUp)} className="text-indigo-400 hover:text-indigo-300 font-bold ml-2">
+                        {isSignUp ? 'Sign In' : 'Sign Up'}
+                    </button>
+                </p>
+            </div>
+        </div>
+    );
+}
+
+// ... The rest of the components (DashboardView, TransactionListView, etc.) remain the same ...
+// --- The rest of the code is unchanged, but included for completeness ---
+
 // --- Navigation Button ---
 const NavButton = ({ icon: Icon, label, activeView, onClick }) => (
     <button onClick={onClick} className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 ${activeView === label.toLowerCase() ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>
