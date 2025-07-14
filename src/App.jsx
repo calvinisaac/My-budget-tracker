@@ -67,7 +67,7 @@ function LoginPage({ auth }) {
     return (
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen flex items-center justify-center">
             <div className="w-full max-w-md bg-slate-800/50 backdrop-blur-md border border-slate-700 p-8 rounded-xl shadow-lg">
-                <h1 className="text-4xl font-bold text-white text-center mb-2">Penny</h1>
+                <h1 className="text-4xl font-bold text-white text-center mb-2">Fin.io</h1>
                 <p className="text-slate-400 text-center mb-8">{isSignUp ? 'Create an account to start tracking.' : 'Welcome back! Please sign in.'}</p>
                 {error && <p className="bg-red-900 border border-red-600 text-red-300 p-3 rounded-lg mb-4">{error}</p>}
                 <form onSubmit={handleEmailPassword} className="space-y-4">
@@ -250,7 +250,7 @@ function BudgetApp({ user, auth }) {
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white min-h-screen font-sans p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
                 <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-                    <div><h1 className="text-3xl font-bold text-white">Penny</h1><p className="text-slate-400 mt-1">Welcome, {user.displayName || user.email}!</p></div>
+                    <div><h1 className="text-3xl font-bold text-white">Fin.io</h1><p className="text-slate-400 mt-1">Welcome, {user.displayName || user.email}!</p></div>
                     <div className="flex items-center space-x-2 mt-4 sm:mt-0">
                         <div className="flex items-center bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-1 flex-wrap">
                             <NavButton icon={LayoutDashboard} label="Dashboard" activeView={activeView} onClick={() => setActiveView('dashboard')} />
