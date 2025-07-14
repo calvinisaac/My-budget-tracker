@@ -17,6 +17,80 @@ const firebaseConfig = {
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
+// --- Helper & Error Components ---
+
+function FirebaseConfigError() {
+    return (<div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white min-h-screen flex items-center justify-center p-8"><div className="bg-red-900 border border-red-600 p-8 rounded-xl max-w-2xl text-center"><h1 className="text-3xl font-bold text-white mb-4">Configuration Error</h1><p className="text-lg text-slate-200 mb-6">It looks like you haven't configured your Firebase credentials yet.</p><p className="text-slate-300 mb-4">To fix this, open the <code className="bg-slate-700 p-1 rounded">src/App.jsx</code> file in your code editor and replace the placeholder <code className="bg-slate-700 p-1 rounded">firebaseConfig</code> object with the actual one from your Firebase project's settings.</p><div className="bg-slate-800 p-4 rounded-lg text-left text-sm text-slate-400"><pre className="whitespace-pre-wrap">{`// Find this section in your code:\nconst firebaseConfig = {\n    apiKey: "YOUR_API_KEY",\n    authDomain: "YOUR_AUTH_DOMAIN",\n    // ... and so on\n};\n\n// Replace it with the object from your Firebase project.`}</pre></div></div></div>);
+}
+
+function GeminiConfigError() {
+    return (<div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white min-h-screen flex items-center justify-center p-8"><div className="bg-red-900 border border-red-600 p-8 rounded-xl max-w-2xl text-center"><h1 className="text-3xl font-bold text-white mb-4">AI Features Disabled</h1><p className="text-lg text-slate-200 mb-6">The Gemini API key is missing. AI-powered features like the financial coach and smart suggestions will not work.</p><p className="text-slate-300 mb-4">To fix this, get a free API key from Google AI Studio and add it to a <code className="bg-slate-700 p-1 rounded">.env</code> file in your project's root directory.</p><div className="bg-slate-800 p-4 rounded-lg text-left text-sm text-slate-400"><pre className="whitespace-pre-wrap">{`// Create a file named .env in the root of your project and add:\nVITE_GEMINI_API_KEY="YOUR_API_KEY_HERE"`}</pre></div></div></div>);
+}
+
+const NavButton = ({ icon: Icon, label, activeView, onClick }) => (
+    <button onClick={onClick} className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 ${activeView === label.toLowerCase() ? 'bg-rose-600 text-white' : 'text-slate-300 hover:bg-slate-700'} transition-all duration-200`}>
+        <Icon size={16} /> {label}
+    </button>
+);
+
+// --- Login Page Component ---
+function LoginPage({ auth }) {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [isSignUp, setIsSignUp] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleEmailPassword = async (e) => {
+        e.preventDefault();
+        setError('');
+        try {
+            if (isSignUp) {
+                await createUserWithEmailAndPassword(auth, email, password);
+            } else {
+                await signInWithEmailAndPassword(auth, email, password);
+            }
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    const handleGoogleSignIn = async () => {
+        setError('');
+        try {
+            const provider = new GoogleAuthProvider();
+            await signInWithPopup(auth, provider);
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    return (
+        <div className="bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen flex items-center justify-center">
+            <div className="w-full max-w-md bg-slate-800/50 backdrop-blur-md border border-slate-700 p-8 rounded-xl shadow-lg">
+                <h1 className="text-4xl font-bold text-white text-center mb-2">Fin.ai</h1>
+                <p className="text-slate-400 text-center mb-8">{isSignUp ? 'Create an account to start tracking.' : 'Welcome back! Please sign in.'}</p>
+                {error && <p className="bg-red-900 border border-red-600 text-red-300 p-3 rounded-lg mb-4">{error}</p>}
+                <form onSubmit={handleEmailPassword} className="space-y-4">
+                    <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-slate-700 p-3 rounded-lg text-white" required />
+                    <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-slate-700 p-3 rounded-lg text-white" required />
+                    <button type="submit" className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold p-3 rounded-lg transition-all duration-300 transform hover:scale-105">{isSignUp ? 'Sign Up' : 'Sign In'}</button>
+                </form>
+                <div className="my-6 flex items-center"><div className="flex-grow bg-slate-700 h-px"></div><span className="mx-4 text-slate-500">OR</span><div className="flex-grow bg-slate-700 h-px"></div></div>
+                <button onClick={handleGoogleSignIn} className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold p-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-300 transform hover:scale-105">
+                    <svg className="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C39.99,35.508,44,29.891,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+                    Sign in with Google
+                </button>
+                <p className="text-center text-slate-400 mt-6">
+                    {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+                    <button onClick={() => setIsSignUp(!isSignUp)} className="text-rose-400 hover:text-rose-300 font-bold ml-2">
+                        {isSignUp ? 'Sign In' : 'Sign Up'}
+                    </button>
+                </p>
+            </div>
+        </div>
+    );
+}
+
 // --- Main App Component ---
 export default function App() {
     // --- Configuration Check ---
@@ -175,7 +249,7 @@ function BudgetApp({ user, auth }) {
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white min-h-screen font-sans p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
                 <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-                    <div><h1 className="text-3xl font-bold text-white">Penny</h1><p className="text-slate-400 mt-1">Welcome, {user.displayName || user.email}!</p></div>
+                    <div><h1 className="text-3xl font-bold text-white">Fin.ai</h1><p className="text-slate-400 mt-1">Welcome, {user.displayName || user.email}!</p></div>
                     <div className="flex items-center space-x-2 mt-4 sm:mt-0">
                         <div className="flex items-center bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-1 flex-wrap">
                             <NavButton icon={LayoutDashboard} label="Dashboard" activeView={activeView} onClick={() => setActiveView('dashboard')} />
@@ -216,65 +290,6 @@ function BudgetApp({ user, auth }) {
         </div>
     );
 }
-
-// --- Login Page Component ---
-function LoginPage({ auth }) {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [isSignUp, setIsSignUp] = useState(false);
-    const [error, setError] = useState('');
-
-    const handleEmailPassword = async (e) => {
-        e.preventDefault();
-        setError('');
-        try {
-            if (isSignUp) {
-                await createUserWithEmailAndPassword(auth, email, password);
-            } else {
-                await signInWithEmailAndPassword(auth, email, password);
-            }
-        } catch (err) {
-            setError(err.message);
-        }
-    };
-
-    const handleGoogleSignIn = async () => {
-        setError('');
-        try {
-            const provider = new GoogleAuthProvider();
-            await signInWithPopup(auth, provider);
-        } catch (err) {
-            setError(err.message);
-        }
-    };
-
-    return (
-        <div className="bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen flex items-center justify-center">
-            <div className="w-full max-w-md bg-slate-800/50 backdrop-blur-md border border-slate-700 p-8 rounded-xl shadow-lg">
-                <h1 className="text-4xl font-bold text-white text-center mb-2">Penny</h1>
-                <p className="text-slate-400 text-center mb-8">{isSignUp ? 'Create an account to start tracking.' : 'Welcome back! Please sign in.'}</p>
-                {error && <p className="bg-red-900 border border-red-600 text-red-300 p-3 rounded-lg mb-4">{error}</p>}
-                <form onSubmit={handleEmailPassword} className="space-y-4">
-                    <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-slate-700 p-3 rounded-lg text-white" required />
-                    <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-slate-700 p-3 rounded-lg text-white" required />
-                    <button type="submit" className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold p-3 rounded-lg transition-all duration-300 transform hover:scale-105">{isSignUp ? 'Sign Up' : 'Sign In'}</button>
-                </form>
-                <div className="my-6 flex items-center"><div className="flex-grow bg-slate-700 h-px"></div><span className="mx-4 text-slate-500">OR</span><div className="flex-grow bg-slate-700 h-px"></div></div>
-                <button onClick={handleGoogleSignIn} className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold p-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-300 transform hover:scale-105">
-                    <svg className="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C39.99,35.508,44,29.891,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
-                    Sign in with Google
-                </button>
-                <p className="text-center text-slate-400 mt-6">
-                    {isSignUp ? 'Already have an account?' : "Don't have an account?"}
-                    <button onClick={() => setIsSignUp(!isSignUp)} className="text-rose-400 hover:text-rose-300 font-bold ml-2">
-                        {isSignUp ? 'Sign In' : 'Sign Up'}
-                    </button>
-                </p>
-            </div>
-        </div>
-    );
-}
-
 // --- Views ---
 
 function DashboardView({ transactions, allTransactions, budgets, dateRange, setDateRange }) {
@@ -813,52 +828,6 @@ function BudgetStatus({ budgets, expenses }) {
     const budgetData = useMemo(() => Object.entries(budgets).map(([cat, bud]) => { const spent = expenses.find(e => e.name === cat)?.value || 0; return { cat, bud, spent, percentage: bud > 0 ? (spent / bud) * 100 : 0 }; }).filter(b => b.bud > 0), [budgets, expenses]);
     if (budgetData.length === 0) return null;
     return (<ChartCard title="Budget Status"><div className="space-y-4">{budgetData.map(({ cat, bud, spent, percentage }) => (<div key={cat}><div className="flex justify-between mb-1 text-sm"><span className="font-medium text-slate-300">{cat}</span><span className="text-slate-400">£{spent.toFixed(2)} / £{bud.toFixed(2)}</span></div><div className="w-full bg-slate-700 rounded-full h-2.5"><div className={`${percentage > 100 ? 'bg-red-500' : 'bg-green-500'} h-2.5 rounded-full`} style={{ width: `${Math.min(percentage, 100)}%` }}></div></div></div>))}</div></ChartCard>);
-}
-function FirebaseConfigError() {
-    return (<div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white min-h-screen flex items-center justify-center p-8"><div className="bg-red-900 border border-red-600 p-8 rounded-xl max-w-2xl text-center"><h1 className="text-3xl font-bold text-white mb-4">Configuration Error</h1><p className="text-lg text-slate-200 mb-6">It looks like you haven't configured your Firebase credentials yet.</p><p className="text-slate-300 mb-4">To fix this, open the <code className="bg-slate-700 p-1 rounded">src/App.jsx</code> file in your code editor and replace the placeholder <code className="bg-slate-700 p-1 rounded">firebaseConfig</code> object with the actual one from your Firebase project's settings.</p><div className="bg-slate-800 p-4 rounded-lg text-left text-sm text-slate-400"><pre className="whitespace-pre-wrap">{`// Find this section in your code:\nconst firebaseConfig = {\n    apiKey: "YOUR_API_KEY",\n    authDomain: "YOUR_AUTH_DOMAIN",\n    // ... and so on\n};\n\n// Replace it with the object from your Firebase project.`}</pre></div></div></div>);
-}
-function GeminiConfigError() {
-    return (<div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white min-h-screen flex items-center justify-center p-8"><div className="bg-red-900 border border-red-600 p-8 rounded-xl max-w-2xl text-center"><h1 className="text-3xl font-bold text-white mb-4">AI Features Disabled</h1><p className="text-lg text-slate-200 mb-6">The Gemini API key is missing. AI-powered features like the financial coach and smart suggestions will not work.</p><p className="text-slate-300 mb-4">To fix this, get a free API key from Google AI Studio and add it to a <code className="bg-slate-700 p-1 rounded">.env</code> file in your project's root directory.</p><div className="bg-slate-800 p-4 rounded-lg text-left text-sm text-slate-400"><pre className="whitespace-pre-wrap">{`// Create a file named .env in the root of your project and add:\nVITE_GEMINI_API_KEY="YOUR_API_KEY_HERE"`}</pre></div></div></div>);
-}
-
-// --- Gemini API Helper ---
-function extractJson(text) {
-    const jsonMatch = text.match(/```json\n([\s\S]*?)\n```|({[\s\S]*})/);
-    if (jsonMatch) {
-        return jsonMatch[1] || jsonMatch[2];
-    }
-    return null;
-}
-
-async function callGeminiApi(prompt) {
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-    
-    const payload = {
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-            temperature: 0.5,
-            topK: 1,
-            topP: 1,
-            maxOutputTokens: 2048,
-        },
-    };
-
-    const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-        throw new Error(`API call failed with status: ${response.status}`);
-    }
-
-    const result = await response.json();
-    if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
-        return result.candidates[0].content.parts[0].text;
-    } else {
-        throw new Error("Unexpected API response structure");
-    }
 }
 
 // --- NEW CALENDAR VIEW ---
