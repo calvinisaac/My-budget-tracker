@@ -43,7 +43,7 @@ export default function App() {
     }, []);
 
     if (loadingAuth) {
-        return <div className="flex items-center justify-center h-screen bg-slate-900"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-teal-500"></div></div>;
+        return <div className="flex items-center justify-center h-screen bg-slate-900"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-rose-500"></div></div>;
     }
 
     if (!user) {
@@ -172,12 +172,12 @@ function BudgetApp({ user, auth }) {
     if (error) return <div className="flex items-center justify-center h-screen bg-slate-900 text-red-400">{error}</div>;
 
     return (
-        <div className="bg-slate-900 text-white min-h-screen font-sans p-4 sm:p-6 lg:p-8">
+        <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white min-h-screen font-sans p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
                 <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
                     <div><h1 className="text-3xl font-bold text-white">Penny</h1><p className="text-slate-400 mt-1">Welcome, {user.displayName || user.email}!</p></div>
                     <div className="flex items-center space-x-2 mt-4 sm:mt-0">
-                        <div className="flex items-center bg-slate-800 rounded-lg p-1 flex-wrap">
+                        <div className="flex items-center bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-1 flex-wrap">
                             <NavButton icon={LayoutDashboard} label="Dashboard" activeView={activeView} onClick={() => setActiveView('dashboard')} />
                             <NavButton icon={List} label="Transactions" activeView={activeView} onClick={() => setActiveView('transactions')} />
                             <NavButton icon={Calendar} label="Calendar" activeView={activeView} onClick={() => setActiveView('calendar')} />
@@ -193,10 +193,10 @@ function BudgetApp({ user, auth }) {
                     </div>
                 </header>
                 <div className="mb-6">
-                    <button onClick={() => setIsAddTxDialogOpen(true)} className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg shadow-teal-600/20"><Plus size={20} /><span>Add New Transaction</span></button>
+                    <button onClick={() => setIsAddTxDialogOpen(true)} className="w-full flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg shadow-rose-600/20"><Plus size={20} /><span>Add New Transaction</span></button>
                 </div>
 
-                {loadingData ? <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-teal-500"></div></div> : (
+                {loadingData ? <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-rose-500"></div></div> : (
                     <>
                         {activeView === 'dashboard' && <DashboardView transactions={filteredTransactions} allTransactions={transactions} budgets={budgets} dateRange={dateRange} setDateRange={setDateRange} />}
                         {activeView === 'transactions' && <TransactionListView transactions={filteredTransactions} handleDeleteTransaction={transactionHandlers.delete} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}
@@ -249,15 +249,15 @@ function LoginPage({ auth }) {
     };
 
     return (
-        <div className="bg-slate-900 min-h-screen flex items-center justify-center">
-            <div className="w-full max-w-md bg-slate-800 p-8 rounded-xl shadow-lg">
+        <div className="bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen flex items-center justify-center">
+            <div className="w-full max-w-md bg-slate-800/50 backdrop-blur-md border border-slate-700 p-8 rounded-xl shadow-lg">
                 <h1 className="text-4xl font-bold text-white text-center mb-2">Penny</h1>
                 <p className="text-slate-400 text-center mb-8">{isSignUp ? 'Create an account to start tracking.' : 'Welcome back! Please sign in.'}</p>
                 {error && <p className="bg-red-900 border border-red-600 text-red-300 p-3 rounded-lg mb-4">{error}</p>}
                 <form onSubmit={handleEmailPassword} className="space-y-4">
                     <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-slate-700 p-3 rounded-lg text-white" required />
                     <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-slate-700 p-3 rounded-lg text-white" required />
-                    <button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold p-3 rounded-lg transition-all duration-300 transform hover:scale-105">{isSignUp ? 'Sign Up' : 'Sign In'}</button>
+                    <button type="submit" className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold p-3 rounded-lg transition-all duration-300 transform hover:scale-105">{isSignUp ? 'Sign Up' : 'Sign In'}</button>
                 </form>
                 <div className="my-6 flex items-center"><div className="flex-grow bg-slate-700 h-px"></div><span className="mx-4 text-slate-500">OR</span><div className="flex-grow bg-slate-700 h-px"></div></div>
                 <button onClick={handleGoogleSignIn} className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold p-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-300 transform hover:scale-105">
@@ -266,7 +266,7 @@ function LoginPage({ auth }) {
                 </button>
                 <p className="text-center text-slate-400 mt-6">
                     {isSignUp ? 'Already have an account?' : "Don't have an account?"}
-                    <button onClick={() => setIsSignUp(!isSignUp)} className="text-teal-400 hover:text-teal-300 font-bold ml-2">
+                    <button onClick={() => setIsSignUp(!isSignUp)} className="text-rose-400 hover:text-rose-300 font-bold ml-2">
                         {isSignUp ? 'Sign In' : 'Sign Up'}
                     </button>
                 </p>
@@ -280,7 +280,7 @@ function LoginPage({ auth }) {
 
 // --- Navigation Button ---
 const NavButton = ({ icon: Icon, label, activeView, onClick }) => (
-    <button onClick={onClick} className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 ${activeView === label.toLowerCase() ? 'bg-teal-600 text-white' : 'text-slate-300 hover:bg-slate-700'} transition-all duration-200`}>
+    <button onClick={onClick} className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 ${activeView === label.toLowerCase() ? 'bg-rose-600 text-white' : 'text-slate-300 hover:bg-slate-700'} transition-all duration-200`}>
         <Icon size={16} /> {label}
     </button>
 );
@@ -331,15 +331,14 @@ function DashboardView({ transactions, allTransactions, budgets, dateRange, setD
 
 function TransactionListView({ transactions, handleDeleteTransaction, searchQuery, setSearchQuery, exportToCsv }) {
     return (
-        <div className="bg-slate-800 p-4 sm:p-6 rounded-xl shadow-lg">
+        <div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-4 sm:p-6 rounded-xl shadow-lg">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-white">All Transactions</h2>
                 <div className="flex items-center gap-2">
-                    <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-slate-700 border border-slate-600 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-teal-500" /></div>
-                    <button onClick={exportToCsv} className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"><Download size={16} /> Export CSV</button>
+                    <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-slate-700 border border-slate-600 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-rose-500" /></div>
                 </div>
             </div>
-            <TransactionList transactions={transactions} handleDeleteTransaction={handleDeleteTransaction} />
+            {transactions.length > 0 ? <TransactionList transactions={transactions} handleDeleteTransaction={handleDeleteTransaction} /> : <EmptyState illustration={<EmptyWalletIllustration/>} message="No transactions yet. Add one to get started!"/>}
         </div>
     );
 }
@@ -347,14 +346,14 @@ function TransactionListView({ transactions, handleDeleteTransaction, searchQuer
 function SubscriptionsView({ subscriptions, onAdd, onDelete }) {
     const totalMonthlyCost = useMemo(() => subscriptions.reduce((total, sub) => total + (sub.amount || 0), 0), [subscriptions]);
     return (
-        <div className="bg-slate-800 p-6 rounded-xl shadow-lg">
+        <div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl shadow-lg">
             <div className="flex justify-between items-center mb-6">
                 <div><h2 className="text-2xl font-semibold text-white">Subscriptions & Bills</h2><p className="text-slate-400 mt-1">Total Monthly Cost: <span className="font-bold text-sky-400">£{totalMonthlyCost.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p></div>
-                <button onClick={onAdd} className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"><Plus size={16} /> Add New</button>
+                <button onClick={onAdd} className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"><Plus size={16} /> Add New</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {subscriptions.sort((a,b) => a.name.localeCompare(b.name)).map(sub => (
-                    <div key={sub.id} className="bg-slate-700 p-4 rounded-lg flex flex-col justify-between">
+                    <div key={sub.id} className="bg-slate-700/50 p-4 rounded-lg transition-all duration-300 hover:scale-105 hover:bg-slate-700">
                         <div className="flex justify-between items-start">
                             <div><h3 className="font-bold text-white">{sub.name}</h3><p className="text-sm text-slate-400">{sub.category}</p></div>
                             <button onClick={() => onDelete(sub.id)} className="text-slate-500 hover:text-red-500"><Trash2 size={16} /></button>
@@ -363,7 +362,7 @@ function SubscriptionsView({ subscriptions, onAdd, onDelete }) {
                     </div>
                 ))}
             </div>
-            {subscriptions.length === 0 && <p className="text-slate-400 text-center py-8">No subscriptions added yet.</p>}
+            {subscriptions.length === 0 && <EmptyState illustration={<EmptyCalendarIllustration/>} message="No subscriptions or bills added yet."/>}
         </div>
     );
 }
@@ -406,7 +405,7 @@ function SettingsView({ initialBudgets, initialCategories, onSave, subscriptions
     };
 
     return (
-        <div className="bg-slate-800 p-6 rounded-xl shadow-lg">
+        <div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl shadow-lg">
             <h2 className="text-2xl font-semibold text-white mb-6">Settings</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
@@ -414,7 +413,7 @@ function SettingsView({ initialBudgets, initialCategories, onSave, subscriptions
                     <div className="flex gap-2 mb-4">
                         <input type="text" placeholder="New category name" value={newCat.name} onChange={e => setNewCat(p => ({...p, name: e.target.value}))} className="flex-grow bg-slate-700 border border-slate-600 rounded-lg p-2 text-white" />
                         <select value={newCat.type} onChange={e => setNewCat(p => ({...p, type: e.target.value}))} className="bg-slate-700 border border-slate-600 rounded-lg p-2 text-white"><option value="expense">Expense</option><option value="income">Income</option></select>
-                        <button onClick={handleAddCategory} className="bg-teal-600 hover:bg-teal-700 text-white font-bold p-2 rounded-lg">Add</button>
+                        <button onClick={handleAddCategory} className="bg-rose-600 hover:bg-rose-700 text-white font-bold p-2 rounded-lg">Add</button>
                     </div>
                     <div className="space-y-4">
                         <div><h4 className="text-lg font-medium text-slate-300 mb-2">Expense Categories</h4><div className="flex flex-wrap gap-2">{(categories.expense || []).map(cat => (<span key={cat} className="bg-slate-700 px-3 py-1 text-sm rounded-full flex items-center gap-2">{cat} <button onClick={() => handleRemoveCategory('expense', cat)} className="text-red-400 hover:text-red-300">&times;</button></span>))}</div></div>
@@ -481,18 +480,18 @@ function FinancialCoachView({ transactions, budgets, subscriptions }) {
 
     return (
         <div className="space-y-8">
-            <div className="bg-slate-800 p-6 rounded-xl shadow-lg">
+            <div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl shadow-lg">
                 <h2 className="text-2xl font-semibold text-white mb-2">Your AI Financial Coach</h2>
                 <p className="text-slate-400 mb-6">Ask anything about your finances, from saving tips to budget analysis.</p>
                 <div className="space-y-4">
                     <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="e.g., How can I save more money on groceries?" rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-lg p-2 text-white"></textarea>
-                    <button onClick={() => handleAskCoach(false)} disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-slate-600">
+                    <button onClick={() => handleAskCoach(false)} disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-slate-600">
                         <Sparkles size={16} /> {isLoading ? 'Thinking...' : 'Ask Your Coach'}
                     </button>
                 </div>
             </div>
 
-            <div className="bg-slate-800 p-6 rounded-xl shadow-lg">
+            <div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl shadow-lg">
                 <h2 className="text-2xl font-semibold text-white mb-2">"What-If" Scenario Planner</h2>
                 <p className="text-slate-400 mb-6">See how a financial change could impact your future.</p>
                 <div className="space-y-4">
@@ -503,7 +502,7 @@ function FinancialCoachView({ transactions, budgets, subscriptions }) {
                 </div>
             </div>
 
-            {isLoading && <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500"></div></div>}
+            {isLoading && <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-rose-500"></div></div>}
             {answer && <div className="bg-slate-700/50 p-4 rounded-lg prose prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: answer.replace(/\n/g, '<br />') }}></div>}
         </div>
     );
@@ -534,7 +533,7 @@ function NetWorthView({ assets, liabilities, handlers }) {
 
     return (
         <div className="space-y-8">
-            <div className="text-center bg-slate-800 p-6 rounded-xl">
+            <div className="text-center bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl">
                 <p className="text-slate-400 text-lg">Your Total Net Worth</p>
                 <p className={`text-5xl font-bold ${netWorth >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     £{netWorth.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -544,7 +543,7 @@ function NetWorthView({ assets, liabilities, handlers }) {
                 <FinancialListComponent title="Assets" items={assets} total={totalAssets} color="text-green-400" onDelete={handlers.asset.delete} />
                 <FinancialListComponent title="Liabilities" items={liabilities} total={totalLiabilities} color="text-red-400" onDelete={handlers.liability.delete} />
             </div>
-            <form onSubmit={handleAddItem} className="bg-slate-800 p-6 rounded-xl space-y-4">
+            <form onSubmit={handleAddItem} className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl space-y-4">
                 <h3 className="text-xl font-semibold text-white">Add New Item</h3>
                 <div className="flex flex-wrap gap-4">
                     <select value={item.type} onChange={e => setItem({...item, type: e.target.value})} className="bg-slate-700 border border-slate-600 rounded-lg p-2 text-white">
@@ -559,7 +558,7 @@ function NetWorthView({ assets, liabilities, handlers }) {
                             <input type="number" placeholder="Min. Payment" value={item.minimumPayment} onChange={e => setItem({...item, minimumPayment: e.target.value})} className="w-32 bg-slate-700 border border-slate-600 rounded-lg p-2 text-white" />
                         </>
                     )}
-                    <button type="submit" className="bg-teal-600 hover:bg-teal-700 text-white font-bold p-2 rounded-lg">Add Item</button>
+                    <button type="submit" className="bg-rose-600 hover:bg-rose-700 text-white font-bold p-2 rounded-lg">Add Item</button>
                 </div>
             </form>
         </div>
@@ -568,7 +567,7 @@ function NetWorthView({ assets, liabilities, handlers }) {
 
 function FinancialListComponent({ title, items, total, color, onDelete }) {
     return (
-        <div className="bg-slate-800 p-6 rounded-xl">
+        <div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl">
             <h2 className={`text-2xl font-semibold text-white mb-4 border-b-2 ${color.replace('text-', 'border-')} pb-2`}>{title}</h2>
             <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
                 {items.map(item => (
@@ -617,7 +616,7 @@ function SavingsGoalsView({ goals, handlers }) {
                 {goals.map(goal => {
                     const percentage = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
                     return (
-                        <div key={goal.id} className="bg-slate-800 p-6 rounded-xl space-y-4">
+                        <div key={goal.id} className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl space-y-4">
                             <div className="flex justify-between items-start">
                                 <h3 className="text-xl font-bold text-white">{goal.name}</h3>
                                 <button onClick={() => handlers.delete(goal.id)} className="text-slate-500 hover:text-red-500"><Trash2 size={16} /></button>
@@ -639,12 +638,13 @@ function SavingsGoalsView({ goals, handlers }) {
                     );
                 })}
             </div>
-            <form onSubmit={handleAddGoal} className="bg-slate-800 p-6 rounded-xl space-y-4">
+            {goals.length === 0 && <EmptyState illustration={<EmptyPiggyBankIllustration/>} message="No savings goals yet. Create one to get started!"/>}
+            <form onSubmit={handleAddGoal} className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl space-y-4">
                 <h3 className="text-xl font-semibold text-white">Create New Savings Goal</h3>
                 <div className="flex gap-4">
                     <input type="text" placeholder="Goal Name (e.g., Holiday Fund)" value={item.name} onChange={e => setItem({...item, name: e.target.value})} className="flex-grow bg-slate-700 p-2 rounded-lg" required />
                     <input type="number" placeholder="Target Amount" value={item.targetAmount} onChange={e => setItem({...item, targetAmount: e.target.value})} className="w-48 bg-slate-700 p-2 rounded-lg" required />
-                    <button type="submit" className="bg-teal-600 font-bold p-2 rounded-lg">Create Goal</button>
+                    <button type="submit" className="bg-rose-600 font-bold p-2 rounded-lg">Create Goal</button>
                 </div>
             </form>
         </div>
@@ -706,16 +706,16 @@ function DebtPlannerView({ liabilities }) {
 
     return (
         <div className="space-y-8">
-            <div className="bg-slate-800 p-6 rounded-xl">
+            <div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl">
                 <h2 className="text-2xl font-semibold text-white mb-4">Debt Paydown Planner</h2>
                 <div className="flex flex-wrap gap-4 items-center">
                     <div><label className="block text-sm text-slate-400">Strategy</label><select value={strategy} onChange={e => setStrategy(e.target.value)} className="bg-slate-700 p-2 rounded-lg"><option value="avalanche">Avalanche (Highest Interest)</option><option value="snowball">Snowball (Lowest Balance)</option></select></div>
                     <div><label className="block text-sm text-slate-400">Extra Monthly Payment (£)</label><input type="number" value={extraPayment} onChange={e => setExtraPayment(parseFloat(e.target.value))} className="bg-slate-700 p-2 rounded-lg w-32" /></div>
-                    <button onClick={calculatePaydown} className="bg-teal-600 self-end font-bold p-2 rounded-lg">Calculate</button>
+                    <button onClick={calculatePaydown} className="bg-rose-600 self-end font-bold p-2 rounded-lg">Calculate</button>
                 </div>
             </div>
             {schedule && (
-                <div className="bg-slate-800 p-6 rounded-xl text-center">
+                <div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl text-center">
                     <h3 className="text-xl font-semibold text-white mb-4">Projected Payoff</h3>
                     <div className="flex justify-around">
                         <div><p className="text-slate-400">Payoff Time</p><p className="text-3xl font-bold text-green-400">{Math.floor(schedule.months / 12)}y {schedule.months % 12}m</p></div>
@@ -728,12 +728,12 @@ function DebtPlannerView({ liabilities }) {
 }
 
 // --- Reusable Components ---
-const ChartCard = ({ title, children }) => (<div className="bg-slate-800 p-6 rounded-xl shadow-lg"><h2 className="text-xl font-semibold mb-4 text-white">{title}</h2>{children}</div>);
+const ChartCard = ({ title, children }) => (<div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl shadow-lg"><h2 className="text-xl font-semibold mb-4 text-white">{title}</h2>{children}</div>);
 function SummaryCard({ title, amount, icon: Icon, color }) {
-    return (<div className="bg-slate-800 p-6 rounded-xl shadow-lg flex items-center justify-between"><div><p className="text-slate-400 text-sm font-medium">{title}</p><p className={`text-2xl font-bold ${color}`}>£{amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p></div><div className={`p-3 rounded-full bg-slate-700 ${color}`}><Icon size={24} /></div></div>);
+    return (<div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 hover:border-rose-500"><div><p className="text-slate-400 text-sm font-medium">{title}</p><p className={`text-2xl font-bold ${color}`}>£{amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p></div><div className={`p-3 rounded-full bg-slate-700 ${color}`}><Icon size={24} /></div></div>);
 }
 function TransactionList({ transactions, handleDeleteTransaction }) {
-    if (transactions.length === 0) return <p className="text-slate-400 text-center py-8">No transactions match your criteria.</p>;
+    if (transactions.length === 0) return <EmptyState illustration={<EmptyWalletIllustration/>} message="No transactions match your criteria."/>;
     return (<div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="border-b border-slate-700"><th className="p-3 text-sm font-semibold text-slate-400">Date</th><th className="p-3 text-sm font-semibold text-slate-400">Description</th><th className="p-3 text-sm font-semibold text-slate-400">Category</th><th className="p-3 text-sm font-semibold text-slate-400 text-right">Amount</th><th className="p-3 text-sm font-semibold text-slate-400 text-center">Action</th></tr></thead><tbody>{transactions.map(t => (<tr key={t.id} className="border-b border-slate-700 hover:bg-slate-700/50"><td className="p-3 text-slate-300">{new Date(t.date).toLocaleDateString('en-GB')}</td><td className="p-3 text-slate-300">{t.description}</td><td className="p-3 text-slate-300"><span className="bg-slate-700 px-2 py-1 text-xs rounded-full">{t.category}</span></td><td className={`p-3 text-right font-medium ${t.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>{t.type === 'income' ? '+' : '-'} £{parseFloat(t.amount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td className="p-3 text-center"><button onClick={() => handleDeleteTransaction(t.id)} className="text-slate-500 hover:text-red-500"><Trash2 size={16} /></button></td></tr>))}</tbody></table></div>);
 }
 function AddTransactionDialog({ categories, onClose, onAdd }) {
@@ -780,7 +780,7 @@ function AddTransactionDialog({ categories, onClose, onAdd }) {
                     <div><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="description">Description</label><div className="flex gap-2"><input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g., Weekly shop at Tesco" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /><button type="button" onClick={handleSuggestCategory} disabled={isSuggesting || type === 'income'} className="flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-3 rounded-lg disabled:bg-slate-600"><Sparkles size={16} /></button></div></div>
                     <div><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="category">Category</label><select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white">{(type === 'expense' ? categories.expense : categories.income).map(cat => (<option key={cat} value={cat}>{cat}</option>))}</select></div>
                     <div><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="date">Date</label><input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div>
-                    <div className="flex justify-end gap-4 pt-4"><button type="button" onClick={onClose} className="py-2 px-4 bg-slate-600 hover:bg-slate-500 text-slate-200 font-bold rounded-lg">Cancel</button><button type="submit" className="py-2 px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg">Add Transaction</button></div>
+                    <div className="flex justify-end gap-4 pt-4"><button type="button" onClick={onClose} className="py-2 px-4 bg-slate-600 hover:bg-slate-500 text-slate-200 font-bold rounded-lg">Cancel</button><button type="submit" className="py-2 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg">Add Transaction</button></div>
                 </form>
             </div>
         </div>
@@ -796,12 +796,12 @@ function AddSubscriptionDialog({ onClose, onAdd }) {
         } 
         await onAdd({ name, amount, category }); 
     };
-    return (<div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"><div className="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-md m-4"><h2 className="text-2xl font-bold mb-6 text-white">Add Subscription or Bill</h2><form onSubmit={handleSubmit}><div className="mb-4"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-name">Name</label><input id="sub-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Netflix" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div><div className="mb-4"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-amount">Amount (£)</label><input id="sub-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div><div className="mb-6"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-category">Category</label><select id="sub-category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white"><option value="Subscriptions">Subscriptions</option><option value="Bills">Bills</option></select></div><div className="flex justify-end gap-4 mt-8"><button type="button" onClick={onClose} className="py-2 px-4 bg-slate-600 hover:bg-slate-500 text-slate-200 font-bold rounded-lg">Cancel</button><button type="submit" className="py-2 px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg">Add Subscription</button></div></form></div></div>);
+    return (<div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"><div className="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-md m-4"><h2 className="text-2xl font-bold mb-6 text-white">Add Subscription or Bill</h2><form onSubmit={handleSubmit}><div className="mb-4"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-name">Name</label><input id="sub-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Netflix" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div><div className="mb-4"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-amount">Amount (£)</label><input id="sub-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div><div className="mb-6"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-category">Category</label><select id="sub-category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white"><option value="Subscriptions">Subscriptions</option><option value="Bills">Bills</option></select></div><div className="flex justify-end gap-4 mt-8"><button type="button" onClick={onClose} className="py-2 px-4 bg-slate-600 hover:bg-slate-500 text-slate-200 font-bold rounded-lg">Cancel</button><button type="submit" className="py-2 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg">Add Subscription</button></div></form></div></div>);
 }
 function DateRangeFilter({ dateRange, setDateRange }) {
     const setThisMonth = () => { const now = new Date(); setDateRange({ start: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0], end: new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0] }); };
     const setLastMonth = () => { const now = new Date(); setDateRange({ start: new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0], end: new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0] }); };
-    return (<div className="bg-slate-800 p-4 rounded-xl mb-8 flex flex-col sm:flex-row items-center gap-4"><div className="flex items-center gap-2"><button onClick={setThisMonth} className="bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg text-sm">This Month</button><button onClick={setLastMonth} className="bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg text-sm">Last Month</button></div><div className="flex items-center gap-2"><input type="date" value={dateRange.start || ''} onChange={e => setDateRange(p => ({...p, start: e.target.value}))} className="bg-slate-700 border border-slate-600 rounded-lg p-2 text-white" /><span className="text-slate-400">to</span><input type="date" value={dateRange.end || ''} onChange={e => setDateRange(p => ({...p, end: e.target.value}))} className="bg-slate-700 border border-slate-600 rounded-lg p-2 text-white" /></div><button onClick={() => setDateRange({start: null, end: null})} className="text-teal-400 hover:text-teal-300 text-sm font-medium">Clear Filter</button></div>);
+    return (<div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-4 rounded-xl mb-8 flex flex-col sm:flex-row items-center gap-4"><div className="flex items-center gap-2"><button onClick={setThisMonth} className="bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg text-sm">This Month</button><button onClick={setLastMonth} className="bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg text-sm">Last Month</button></div><div className="flex items-center gap-2"><input type="date" value={dateRange.start || ''} onChange={e => setDateRange(p => ({...p, start: e.target.value}))} className="bg-slate-700 border border-slate-600 rounded-lg p-2 text-white" /><span className="text-slate-400">to</span><input type="date" value={dateRange.end || ''} onChange={e => setDateRange(p => ({...p, end: e.target.value}))} className="bg-slate-700 border border-slate-600 rounded-lg p-2 text-white" /></div><button onClick={() => setDateRange({start: null, end: null})} className="text-rose-400 hover:text-rose-300 text-sm font-medium">Clear Filter</button></div>);
 }
 function BudgetStatus({ budgets, expenses }) {
     const budgetData = useMemo(() => Object.entries(budgets).map(([cat, bud]) => { const spent = expenses.find(e => e.name === cat)?.value || 0; return { cat, bud, spent, percentage: bud > 0 ? (spent / bud) * 100 : 0 }; }).filter(b => b.bud > 0), [budgets, expenses]);
@@ -809,10 +809,10 @@ function BudgetStatus({ budgets, expenses }) {
     return (<ChartCard title="Budget Status"><div className="space-y-4">{budgetData.map(({ cat, bud, spent, percentage }) => (<div key={cat}><div className="flex justify-between mb-1 text-sm"><span className="font-medium text-slate-300">{cat}</span><span className="text-slate-400">£{spent.toFixed(2)} / £{bud.toFixed(2)}</span></div><div className="w-full bg-slate-700 rounded-full h-2.5"><div className={`${percentage > 100 ? 'bg-red-500' : 'bg-green-500'} h-2.5 rounded-full`} style={{ width: `${Math.min(percentage, 100)}%` }}></div></div></div>))}</div></ChartCard>);
 }
 function FirebaseConfigError() {
-    return (<div className="bg-slate-900 text-white min-h-screen flex items-center justify-center p-8"><div className="bg-red-900 border border-red-600 p-8 rounded-xl max-w-2xl text-center"><h1 className="text-3xl font-bold text-white mb-4">Configuration Error</h1><p className="text-lg text-slate-200 mb-6">It looks like you haven't configured your Firebase credentials yet.</p><p className="text-slate-300 mb-4">To fix this, open the <code className="bg-slate-700 p-1 rounded">src/App.jsx</code> file in your code editor and replace the placeholder <code className="bg-slate-700 p-1 rounded">firebaseConfig</code> object with the actual one from your Firebase project's settings.</p><div className="bg-slate-800 p-4 rounded-lg text-left text-sm text-slate-400"><pre className="whitespace-pre-wrap">{`// Find this section in your code:\nconst firebaseConfig = {\n    apiKey: "YOUR_API_KEY",\n    authDomain: "YOUR_AUTH_DOMAIN",\n    // ... and so on\n};\n\n// Replace it with the object from your Firebase project.`}</pre></div></div></div>);
+    return (<div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white min-h-screen flex items-center justify-center p-8"><div className="bg-red-900 border border-red-600 p-8 rounded-xl max-w-2xl text-center"><h1 className="text-3xl font-bold text-white mb-4">Configuration Error</h1><p className="text-lg text-slate-200 mb-6">It looks like you haven't configured your Firebase credentials yet.</p><p className="text-slate-300 mb-4">To fix this, open the <code className="bg-slate-700 p-1 rounded">src/App.jsx</code> file in your code editor and replace the placeholder <code className="bg-slate-700 p-1 rounded">firebaseConfig</code> object with the actual one from your Firebase project's settings.</p><div className="bg-slate-800 p-4 rounded-lg text-left text-sm text-slate-400"><pre className="whitespace-pre-wrap">{`// Find this section in your code:\nconst firebaseConfig = {\n    apiKey: "YOUR_API_KEY",\n    authDomain: "YOUR_AUTH_DOMAIN",\n    // ... and so on\n};\n\n// Replace it with the object from your Firebase project.`}</pre></div></div></div>);
 }
 function GeminiConfigError() {
-    return (<div className="bg-slate-900 text-white min-h-screen flex items-center justify-center p-8"><div className="bg-red-900 border border-red-600 p-8 rounded-xl max-w-2xl text-center"><h1 className="text-3xl font-bold text-white mb-4">AI Features Disabled</h1><p className="text-lg text-slate-200 mb-6">The Gemini API key is missing. AI-powered features like the financial coach and smart suggestions will not work.</p><p className="text-slate-300 mb-4">To fix this, get a free API key from Google AI Studio and add it to a <code className="bg-slate-700 p-1 rounded">.env</code> file in your project's root directory.</p><div className="bg-slate-800 p-4 rounded-lg text-left text-sm text-slate-400"><pre className="whitespace-pre-wrap">{`// Create a file named .env in the root of your project and add:\nVITE_GEMINI_API_KEY="YOUR_API_KEY_HERE"`}</pre></div></div></div>);
+    return (<div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white min-h-screen flex items-center justify-center p-8"><div className="bg-red-900 border border-red-600 p-8 rounded-xl max-w-2xl text-center"><h1 className="text-3xl font-bold text-white mb-4">AI Features Disabled</h1><p className="text-lg text-slate-200 mb-6">The Gemini API key is missing. AI-powered features like the financial coach and smart suggestions will not work.</p><p className="text-slate-300 mb-4">To fix this, get a free API key from Google AI Studio and add it to a <code className="bg-slate-700 p-1 rounded">.env</code> file in your project's root directory.</p><div className="bg-slate-800 p-4 rounded-lg text-left text-sm text-slate-400"><pre className="whitespace-pre-wrap">{`// Create a file named .env in the root of your project and add:\nVITE_GEMINI_API_KEY="YOUR_API_KEY_HERE"`}</pre></div></div></div>);
 }
 
 // --- Gemini API Helper ---
@@ -902,7 +902,7 @@ function CalendarView({ transactions, subscriptions }) {
     }
 
     return (
-        <div className="bg-slate-800 p-6 rounded-xl">
+        <div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl">
             <div className="flex justify-between items-center mb-4">
                 <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-slate-700"><ChevronLeft /></button>
                 <h2 className="text-2xl font-semibold text-white">{currentDate.toLocaleString('en-GB', { month: 'long', year: 'numeric' })}</h2>
@@ -929,13 +929,13 @@ function AchievementsView({ achievements }) {
     ];
 
     return (
-        <div className="bg-slate-800 p-6 rounded-xl">
+        <div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-6 rounded-xl">
             <h2 className="text-2xl font-semibold text-white mb-6">Your Achievements</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {allBadges.map(badge => {
                     const isEarned = achievements[badge.id];
                     return (
-                        <div key={badge.id} className={`p-6 rounded-xl text-center transition-all duration-300 ${isEarned ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/20' : 'bg-slate-700 text-slate-400'}`}>
+                        <div key={badge.id} className={`p-6 rounded-xl text-center transition-all duration-300 ${isEarned ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'bg-slate-700 text-slate-400'}`}>
                             <div className={`mx-auto w-16 h-16 mb-4 rounded-full flex items-center justify-center ${isEarned ? 'bg-white/20' : 'bg-slate-600'}`}>
                                 {React.cloneElement(badge.icon, { size: 32, className: isEarned ? 'text-white' : 'text-slate-500' })}
                             </div>
@@ -948,3 +948,29 @@ function AchievementsView({ achievements }) {
         </div>
     );
 }
+
+// --- Empty State Illustrations ---
+const EmptyState = ({ illustration, message }) => (
+    <div className="text-center py-16">
+        <div className="w-48 mx-auto text-slate-600">{illustration}</div>
+        <p className="text-slate-400 mt-4">{message}</p>
+    </div>
+);
+
+const EmptyWalletIllustration = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z"/>
+    </svg>
+);
+
+const EmptyCalendarIllustration = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+);
+
+const EmptyPiggyBankIllustration = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19.7 15.3c-1.2-1.2-2.9-1.2-4.1 0s-1.2 2.9 0 4.1c1.2 1.2 2.9 1.2 4.1 0s1.2-2.9 0-4.1z"/><path d="M11.3 15.3c-1.2-1.2-2.9-1.2-4.1 0s-1.2 2.9 0 4.1c1.2 1.2 2.9 1.2 4.1 0s1.2-2.9 0-4.1z"/><path d="M15.5 15.5c-1.2-1.2-2.9-1.2-4.1 0s-1.2 2.9 0 4.1c1.2 1.2 2.9 1.2 4.1 0s1.2-2.9 0-4.1z"/><path d="M12 3a1 1 0 0 0-1 1v2.5a1 1 0 0 0 2 0V4a1 1 0 0 0-1-1z"/><path d="M12 21a1 1 0 0 0 1-1v-2.5a1 1 0 0 0-2 0V20a1 1 0 0 0 1 1z"/><path d="M3 12a1 1 0 0 0-1 1h2.5a1 1 0 0 0 0-2H2a1 1 0 0 0-1 1z"/><path d="M21 12a1 1 0 0 0 1-1h-2.5a1 1 0 0 0 0 2H22a1 1 0 0 0 1-1z"/>
+    </svg>
+);
