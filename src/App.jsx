@@ -67,7 +67,7 @@ function LoginPage({ auth }) {
     return (
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen flex items-center justify-center">
             <div className="w-full max-w-md bg-slate-800/50 backdrop-blur-md border border-slate-700 p-8 rounded-xl shadow-lg">
-                <h1 className="text-4xl font-bold text-white text-center mb-2">Fin.ai</h1>
+                <h1 className="text-4xl font-bold text-white text-center mb-2">Penny</h1>
                 <p className="text-slate-400 text-center mb-8">{isSignUp ? 'Create an account to start tracking.' : 'Welcome back! Please sign in.'}</p>
                 {error && <p className="bg-red-900 border border-red-600 text-red-300 p-3 rounded-lg mb-4">{error}</p>}
                 <form onSubmit={handleEmailPassword} className="space-y-4">
@@ -167,7 +167,7 @@ function BudgetApp({ user, auth }) {
             { path: `users/${userId}/subscriptions`, setter: setSubscriptions },
             { path: `users/${userId}/assets`, setter: setAssets },
             { path: `users/${userId}/liabilities`, setter: setLiabilities },
-            { path: `users/${userId}/savingsGoals`, setter: setSavingsGoals },
+            { path: `users/${userId}/savingsGoals`, setter: setSavingsGoals, transform: d => ({ ...d, dueDate: d.dueDate?.toDate ? d.dueDate.toDate() : null }) },
             { path: `users/${userId}/settings/achievements`, setter: setAchievements, isDoc: true },
             { path: `users/${userId}/settings/budgets`, setter: setBudgets, isDoc: true },
             { path: `users/${userId}/settings/categories`, setter: setCategories, isDoc: true, default: { expense: ['Bills', 'Food', 'Health', 'Transport', 'Subscriptions', 'Entertainment', 'Shopping', 'Other'], income: ['Salary', 'Bonus', 'Freelance', 'Gift', 'Other'] } }
@@ -202,6 +202,7 @@ function BudgetApp({ user, auth }) {
                 const itemToAdd = { ...item };
                 if (itemToAdd.amount) itemToAdd.amount = parseFloat(itemToAdd.amount);
                 if (itemToAdd.date) itemToAdd.date = new Date(itemToAdd.date);
+                if (itemToAdd.dueDate) itemToAdd.dueDate = new Date(itemToAdd.dueDate);
                 if (itemToAdd.value) itemToAdd.value = parseFloat(itemToAdd.value);
                 if (itemToAdd.targetAmount) itemToAdd.targetAmount = parseFloat(itemToAdd.targetAmount);
                 if (itemToAdd.interestRate) itemToAdd.interestRate = parseFloat(itemToAdd.interestRate);
@@ -249,7 +250,7 @@ function BudgetApp({ user, auth }) {
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white min-h-screen font-sans p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
                 <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-                    <div><h1 className="text-3xl font-bold text-white">Fin.ai</h1><p className="text-slate-400 mt-1">Welcome, {user.displayName || user.email}!</p></div>
+                    <div><h1 className="text-3xl font-bold text-white">Penny</h1><p className="text-slate-400 mt-1">Welcome, {user.displayName || user.email}!</p></div>
                     <div className="flex items-center space-x-2 mt-4 sm:mt-0">
                         <div className="flex items-center bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-lg p-1 flex-wrap">
                             <NavButton icon={LayoutDashboard} label="Dashboard" activeView={activeView} onClick={() => setActiveView('dashboard')} />
@@ -272,7 +273,7 @@ function BudgetApp({ user, auth }) {
 
                 {loadingData ? <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-rose-500"></div></div> : (
                     <>
-                        {activeView === 'dashboard' && <DashboardView transactions={filteredTransactions} allTransactions={transactions} budgets={budgets} dateRange={dateRange} setDateRange={setDateRange} />}
+                        {activeView === 'dashboard' && <DashboardView transactions={filteredTransactions} allTransactions={transactions} budgets={budgets} dateRange={dateRange} setDateRange={setDateRange} savingsGoals={savingsGoals} />}
                         {activeView === 'transactions' && <TransactionListView transactions={filteredTransactions} handleDeleteTransaction={transactionHandlers.delete} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}
                         {activeView === 'calendar' && <CalendarView transactions={transactions} subscriptions={subscriptions} />}
                         {activeView === 'subscriptions' && <SubscriptionsView subscriptions={subscriptions} onAdd={() => setIsAddSubDialogOpen(true)} onDelete={subscriptionHandlers.delete} />}
@@ -292,7 +293,7 @@ function BudgetApp({ user, auth }) {
 }
 // --- Views ---
 
-function DashboardView({ transactions, allTransactions, budgets, dateRange, setDateRange }) {
+function DashboardView({ transactions, allTransactions, budgets, dateRange, setDateRange, savingsGoals }) {
     const summary = useMemo(() => transactions.reduce((acc, t) => {
         const amount = parseFloat(t.amount) || 0;
         if (t.type === 'income') acc.income += amount; else acc.expense += amount;
@@ -343,7 +344,7 @@ function DashboardView({ transactions, allTransactions, budgets, dateRange, setD
                 <ChartCard title="Monthly Trends (Last 6 Months)"><ResponsiveContainer width="100%" height={300}><LineChart data={trendData}><CartesianGrid strokeDasharray="3 3" stroke="#374151" /><XAxis dataKey="name" tick={{ fill: '#9ca3af' }} /><YAxis tick={{ fill: '#9ca3af' }} tickFormatter={(v) => `£${v.toLocaleString('en-GB')}`} /><Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }} formatter={(v) => `£${v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} /><Legend /><Line type="monotone" dataKey="income" stroke="#4ade80" /><Line type="monotone" dataKey="expense" stroke="#f87171" /></LineChart></ResponsiveContainer></ChartCard>
                 <ChartCard title="Expenses by Category"><ResponsiveContainer width="100%" height={300}><PieChart><Pie data={expenseByCategory} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8">{expenseByCategory.map((e, i) => <Cell key={`cell-${i}`} fill={['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F'][i % 6]} />)}</Pie><Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }} formatter={(v) => `£${v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} /><RechartsLegend /></PieChart></ResponsiveContainer></ChartCard>
                 <ChartCard title="Monthly Savings Rate"><ResponsiveContainer width="100%" height={300}><BarChart data={savingsRateData}><CartesianGrid strokeDasharray="3 3" stroke="#374151" /><XAxis dataKey="name" tick={{ fill: '#9ca3af' }} /><YAxis tick={{ fill: '#9ca3af' }} unit="%" /><Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }} formatter={(v) => `${v.toFixed(2)}%`} /><Bar dataKey="rate" name="Savings Rate" fill="#2dd4bf" /></BarChart></ResponsiveContainer></ChartCard>
-                <CurrencyConverter />
+                <SavingsGoalsWidget goals={savingsGoals} />
             </div>
             <BudgetStatus budgets={budgets} expenses={expenseByCategory} />
         </main>
