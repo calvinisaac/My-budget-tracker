@@ -173,7 +173,7 @@ function BudgetApp({ user, auth }) {
         <div className="bg-slate-900 text-white min-h-screen font-sans p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
                 <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-                    <div><h1 className="text-3xl font-bold text-white">Penny</h1><p className="text-slate-400 mt-1">Welcome, {user.displayName || user.email}!</p></div>
+                    <div><h1 className="text-3xl font-bold text-white">Fin.ai</h1><p className="text-slate-400 mt-1">Welcome, {user.displayName || user.email}!</p></div>
                     <div className="flex items-center space-x-2 mt-4 sm:mt-0">
                         <div className="flex items-center bg-slate-800 rounded-lg p-1 flex-wrap">
                             <NavButton icon={LayoutDashboard} label="Dashboard" activeView={activeView} onClick={() => setActiveView('dashboard')} />
@@ -189,6 +189,9 @@ function BudgetApp({ user, auth }) {
                         <button onClick={handleLogout} className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg"><LogOut size={16} /><span>Logout</span></button>
                     </div>
                 </header>
+                <div className="mb-6">
+                    <button onClick={() => setIsAddTxDialogOpen(true)} className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-lg shadow-indigo-600/20"><Plus size={20} /><span>Add New Transaction</span></button>
+                </div>
 
                 {loadingData ? <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div></div> : (
                     <>
@@ -244,7 +247,7 @@ function LoginPage({ auth }) {
     return (
         <div className="bg-slate-900 min-h-screen flex items-center justify-center">
             <div className="w-full max-w-md bg-slate-800 p-8 rounded-xl shadow-lg">
-                <h1 className="text-4xl font-bold text-white text-center mb-2">Penny</h1>
+                <h1 className="text-4xl font-bold text-white text-center mb-2">Fin.ai</h1>
                 <p className="text-slate-400 text-center mb-8">{isSignUp ? 'Create an account to start tracking.' : 'Welcome back! Please sign in.'}</p>
                 {error && <p className="bg-red-900 border border-red-600 text-red-300 p-3 rounded-lg mb-4">{error}</p>}
                 <form onSubmit={handleEmailPassword} className="space-y-4">
@@ -267,9 +270,6 @@ function LoginPage({ auth }) {
         </div>
     );
 }
-
-// ... The rest of the components (DashboardView, TransactionListView, etc.) remain the same ...
-// --- The rest of the code is unchanged, but included for completeness ---
 
 // --- Navigation Button ---
 const NavButton = ({ icon: Icon, label, activeView, onClick }) => (
@@ -442,11 +442,13 @@ function SettingsView({ initialBudgets, initialCategories, onSave, subscriptions
 
 function FinancialCoachView({ transactions, budgets, subscriptions }) {
     const [question, setQuestion] = useState('');
+    const [scenario, setScenario] = useState('');
     const [answer, setAnswer] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleAskCoach = async () => {
-        if (!question.trim()) return;
+    const handleAskCoach = async (isScenario = false) => {
+        const query = isScenario ? scenario : question;
+        if (!query.trim()) return;
         setIsLoading(true);
         setAnswer('');
 
@@ -455,8 +457,10 @@ function FinancialCoachView({ transactions, budgets, subscriptions }) {
             - Budgets: ${JSON.stringify(budgets)}
             - Subscriptions: ${subscriptions.map(s => `${s.name}: £${s.amount}`).join(', ')}
         `;
-
-        const prompt = `You are a friendly and encouraging UK-based financial coach. Based on the following financial summary, provide a helpful and actionable answer to the user's question. User's question: "${question}". Financial Summary: ${financialSummary}`;
+        
+        const prompt = isScenario 
+            ? `You are a helpful financial planning assistant. A user wants to know the impact of a potential financial change. Based on their current financial summary, analyze the scenario and provide a clear, actionable projection. User's scenario: "${query}". Financial Summary: ${financialSummary}`
+            : `You are a friendly and encouraging UK-based financial coach. Based on the following financial summary, provide a helpful and actionable answer to the user's question. User's question: "${query}". Financial Summary: ${financialSummary}`;
         
         try {
             const resultText = await callGeminiApi(prompt);
@@ -469,17 +473,31 @@ function FinancialCoachView({ transactions, budgets, subscriptions }) {
     };
 
     return (
-        <div className="bg-slate-800 p-6 rounded-xl shadow-lg">
-            <h2 className="text-2xl font-semibold text-white mb-2">Your AI Financial Coach</h2>
-            <p className="text-slate-400 mb-6">Ask anything about your finances, from saving tips to budget analysis.</p>
-            <div className="space-y-4">
-                <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="e.g., How can I save more money on groceries?" rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-lg p-2 text-white"></textarea>
-                <button onClick={handleAskCoach} disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-slate-600">
-                    <Sparkles size={16} /> {isLoading ? 'Thinking...' : 'Ask Your Coach'}
-                </button>
-                {isLoading && <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div></div>}
-                {answer && <div className="bg-slate-700/50 p-4 rounded-lg prose prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: answer.replace(/\n/g, '<br />') }}></div>}
+        <div className="space-y-8">
+            <div className="bg-slate-800 p-6 rounded-xl shadow-lg">
+                <h2 className="text-2xl font-semibold text-white mb-2">Your AI Financial Coach</h2>
+                <p className="text-slate-400 mb-6">Ask anything about your finances, from saving tips to budget analysis.</p>
+                <div className="space-y-4">
+                    <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="e.g., How can I save more money on groceries?" rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-lg p-2 text-white"></textarea>
+                    <button onClick={() => handleAskCoach(false)} disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-slate-600">
+                        <Sparkles size={16} /> {isLoading ? 'Thinking...' : 'Ask Your Coach'}
+                    </button>
+                </div>
             </div>
+
+            <div className="bg-slate-800 p-6 rounded-xl shadow-lg">
+                <h2 className="text-2xl font-semibold text-white mb-2">"What-If" Scenario Planner</h2>
+                <p className="text-slate-400 mb-6">See how a financial change could impact your future.</p>
+                <div className="space-y-4">
+                    <textarea value={scenario} onChange={e => setScenario(e.target.value)} placeholder="e.g., What if my salary increases by £200 a month?" rows="3" className="w-full bg-slate-700 border border-slate-600 rounded-lg p-2 text-white"></textarea>
+                    <button onClick={() => handleAskCoach(true)} disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-slate-600">
+                        <Bot size={16} /> {isLoading ? 'Analyzing...' : 'Analyze Scenario'}
+                    </button>
+                </div>
+            </div>
+
+            {isLoading && <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div></div>}
+            {answer && <div className="bg-slate-700/50 p-4 rounded-lg prose prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: answer.replace(/\n/g, '<br />') }}></div>}
         </div>
     );
 }
@@ -828,4 +846,67 @@ async function callGeminiApi(prompt) {
     } else {
         throw new Error("Unexpected API response structure");
     }
+}
+
+// --- NEW CALENDAR VIEW ---
+function CalendarView({ transactions, subscriptions }) {
+    const [currentDate, setCurrentDate] = useState(new Date());
+
+    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
+
+    const eventsByDate = useMemo(() => {
+        const events = {};
+        transactions.forEach(t => {
+            const date = new Date(t.date).toDateString();
+            if (!events[date]) events[date] = [];
+            events[date].push({ ...t, type: 'transaction' });
+        });
+        // Note: This is a simplified subscription model. It shows all subscriptions on their name.
+        // A more advanced model would calculate recurring due dates.
+        return events;
+    }, [transactions]);
+
+    const changeMonth = (offset) => {
+        setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
+    };
+
+    const calendarDays = [];
+    for (let i = 0; i < firstDayOfMonth; i++) {
+        calendarDays.push(<div key={`empty-${i}`} className="border border-slate-700"></div>);
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+        const dateString = date.toDateString();
+        const dayEvents = eventsByDate[dateString] || [];
+
+        calendarDays.push(
+            <div key={day} className="border border-slate-700 p-2 h-32 flex flex-col">
+                <span className="font-bold">{day}</span>
+                <div className="flex-grow overflow-y-auto text-xs space-y-1 mt-1">
+                    {dayEvents.map(event => (
+                        <div key={event.id} className={`p-1 rounded ${event.type === 'income' ? 'bg-green-800/50' : 'bg-red-800/50'}`}>
+                            {event.description} - £{event.amount}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="bg-slate-800 p-6 rounded-xl">
+            <div className="flex justify-between items-center mb-4">
+                <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-slate-700"><ChevronLeft /></button>
+                <h2 className="text-2xl font-semibold text-white">{currentDate.toLocaleString('en-GB', { month: 'long', year: 'numeric' })}</h2>
+                <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-slate-700"><ChevronRight /></button>
+            </div>
+            <div className="grid grid-cols-7 gap-px bg-slate-700">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                    <div key={day} className="text-center font-semibold p-2 bg-slate-800">{day}</div>
+                ))}
+                {calendarDays}
+            </div>
+        </div>
+    );
 }
