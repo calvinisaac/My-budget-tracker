@@ -350,6 +350,7 @@ function DashboardView({ transactions, allTransactions, budgets, dateRange, setD
         </main>
     );
 }
+
 function TransactionListView({ transactions, handleDeleteTransaction, searchQuery, setSearchQuery }) {
     return (
         <div className="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-4 sm:p-6 rounded-xl shadow-lg">
