@@ -1093,7 +1093,7 @@ function AchievementsView({ achievements }) {
                 {allBadges.map(badge => {
                     const isEarned = achievements[badge.id];
                     return (
-                        <div key={badge.id} className={`p-6 rounded-xl text-center transition-all duration-300 ${isEarned ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'bg-slate-700 text-slate-400'}`}>
+                        <div key={badge.id} className={`p-6 rounded-xl text-center transition-all duration-300 ${isEarned ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-700 text-slate-400'}`}>
                             <div className={`mx-auto w-16 h-16 mb-4 rounded-full flex items-center justify-center ${isEarned ? 'bg-white/20' : 'bg-slate-600'}`}>
                                 {React.cloneElement(badge.icon, { size: 32, className: isEarned ? 'text-white' : 'text-slate-500' })}
                             </div>
