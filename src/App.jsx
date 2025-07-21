@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot, query, setDoc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
+import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot, query, setDoc, getDoc, writeBatch, updateDoc, orderBy } from 'firebase/firestore';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Legend as RechartsLegend, AreaChart, Area } from 'recharts';
-import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, List, LayoutDashboard, Settings, Search, Download, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck, LogOut, ChevronLeft, ChevronRight, Award, RefreshCw, TrendingUp, MoreHorizontal, Sun, Moon, Wind, Lightbulb, Bell, Globe } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, PoundSterling, List, LayoutDashboard, Settings, Search, Download, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck, LogOut, ChevronLeft, ChevronRight, Award, RefreshCw, TrendingUp, MoreHorizontal, Sun, Moon, Wind, Lightbulb } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 
@@ -73,7 +73,7 @@ function LoginPage({ auth }) {
     return (
         <div className="bg-gradient-to-br from-slate-900 to-black text-white min-h-screen flex items-center justify-center">
             <div className="w-full max-w-md bg-slate-800/50 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl">
-                <h1 className="text-5xl font-bold text-white text-center mb-2">Penny</h1>
+                <h1 className="text-5xl font-bold text-white text-center mb-2">Fin.ai</h1>
                 <p className="text-slate-400 text-center mb-8">{isSignUp ? 'Create an account to start tracking.' : 'Welcome back! Please sign in.'}</p>
                 {error && <p className="bg-red-900 border border-red-600 text-red-300 p-3 rounded-lg mb-4">{error}</p>}
                 <form onSubmit={handleEmailPassword} className="space-y-4">
@@ -107,12 +107,19 @@ export default function App() {
     const [auth, setAuth] = useState(null);
     const [user, setUser] = useState(null);
     const [loadingAuth, setLoadingAuth] = useState(true);
+    // ADDED: State for the database instance
+    const [db, setDb] = useState(null); 
 
     // --- Firebase Initialization and Auth Listener ---
     useEffect(() => {
         const app = initializeApp(firebaseConfig);
         const firebaseAuth = getAuth(app);
+        // ADDED: Initialize Firestore here
+        const firestoreDb = getFirestore(app); 
+        
         setAuth(firebaseAuth);
+        // ADDED: Set the database instance to state
+        setDb(firestoreDb); 
 
         const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
             setUser(user);
@@ -130,12 +137,13 @@ export default function App() {
         return <LoginPage auth={auth} />;
     }
 
-    return <BudgetApp user={user} auth={auth} />;
+    // MODIFIED: Pass the 'db' instance as a prop
+    return <BudgetApp user={user} auth={auth} db={db} />;
 }
 
 // --- Budget App Component (The main app after login) ---
-function BudgetApp({ user, auth }) {
-    const [db, setDb] = useState(null);
+function BudgetApp({ user, auth, db }) {
+    //const [db, setDb] = useState(null);
     const [transactions, setTransactions] = useState([]);
     const [subscriptions, setSubscriptions] = useState([]);
     const [budgets, setBudgets] = useState({});
@@ -156,58 +164,153 @@ function BudgetApp({ user, auth }) {
     const [isAddSubDialogOpen, setIsAddSubDialogOpen] = useState(false);
     
     const [searchQuery, setSearchQuery] = useState('');
-    const [currency, setCurrency] = useState('GBP');
-    const [currencySymbol, setCurrencySymbol] = useState('£');
 
-    const currencyMap = {
-        'GBP': '£',
-        'USD': '$',
-        'EUR': '€',
-        'INR': '₹',
-    };
+    // useEffect(() => {
+    //     const firestoreDb = getFirestore(initializeApp(firebaseConfig));
+    //     setDb(firestoreDb);
+    // }, []);
 
-    useEffect(() => {
-        const firestoreDb = getFirestore(initializeApp(firebaseConfig));
-        setDb(firestoreDb);
-    }, []);
-
+    // --- Data Fetching ---
+    // --- Data Fetching ---
     // --- Data Fetching ---
     useEffect(() => {
         if (!db || !user) return;
         setLoadingData(true);
         const userId = user.uid;
         const collectionsToFetch = [
-            { path: `users/${userId}/transactions`, setter: setTransactions, transform: d => ({ ...d, date: d.date?.toDate ? d.date.toDate() : new Date(d.date) }) },
+            { path: `users/${userId}/transactions`, setter: setTransactions, transform: d => ({ ...d, date: d.date?.toDate ? d.date.toDate() : new Date(d.date) }), orderBy: ['date', 'desc'] },
             { path: `users/${userId}/subscriptions`, setter: setSubscriptions },
             { path: `users/${userId}/assets`, setter: setAssets },
             { path: `users/${userId}/liabilities`, setter: setLiabilities },
             { path: `users/${userId}/savingsGoals`, setter: setSavingsGoals, transform: d => ({ ...d, dueDate: d.dueDate?.toDate ? d.dueDate.toDate() : null }) },
             { path: `users/${userId}/settings/achievements`, setter: setAchievements, isDoc: true },
             { path: `users/${userId}/settings/budgets`, setter: setBudgets, isDoc: true },
-            { path: `users/${userId}/settings/categories`, setter: setCategories, isDoc: true, default: { expense: ['Bills', 'Food', 'Health', 'Transport', 'Subscriptions', 'Entertainment', 'Shopping', 'Other'], income: ['Salary', 'Bonus', 'Freelance', 'Gift', 'Other'] } },
-            { 
-                path: `users/${userId}/settings/preferences`, 
-                setter: (data) => {
-                    if (data && data.currency) {
-                        setCurrency(data.currency);
-                        setCurrencySymbol(currencyMap[data.currency] || '£');
-                    }
-                }, 
-                isDoc: true 
-            }
+            { path: `users/${userId}/settings/categories`, setter: setCategories, isDoc: true, default: { expense: ['Bills', 'Food', 'Health', 'Transport', 'Subscriptions', 'Entertainment', 'Shopping', 'Other'], income: ['Salary', 'Bonus', 'Freelance', 'Gift', 'Other'] } }
         ];
-        const unsubscribes = collectionsToFetch.map(({ path, setter, transform, isDoc, default: defaultValue }) => 
-            onSnapshot(isDoc ? doc(db, path) : collection(db, path), (snapshot) => {
-                if (isDoc) setter(snapshot.exists() ? snapshot.data() : (defaultValue || {}));
-                else {
+
+        const unsubscribes = collectionsToFetch.map(({ path, setter, transform, isDoc, default: defaultValue, orderBy: orderByConfig }) => {
+            const docOrCollRef = isDoc ? doc(db, path) : collection(db, path);
+            const finalQuery = !isDoc && orderByConfig ? query(docOrCollRef, orderBy(...orderByConfig)) : docOrCollRef;
+
+            return onSnapshot(finalQuery, (snapshot) => {
+                if (isDoc) {
+                    setter(snapshot.exists() ? snapshot.data() : (defaultValue || {}));
+                } else {
                     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     setter(transform ? data.map(transform) : data);
                 }
-            }, (err) => { console.error(`Error fetching ${path}:`, err); setError(`Failed to load ${path}.`); })
-        );
+            }, (err) => { console.error(`Error fetching ${path}:`, err); setError(`Failed to load ${path}.`); });
+        });
+
         setLoadingData(false);
-        return () => unsubscribes.forEach(unsub => unsub());
-    }, [db, user]);
+    return () => unsubscribes.forEach(unsub => unsub());
+}, [db, user]);
+
+    // --- Achievement Logic ---
+    useEffect(() => {
+        // Don't run if data is loading, not logged in, or db not ready
+        if (loadingData || !user || !db) return;
+
+        // A flag to see if we need to update Firestore
+        let achievementsUpdated = false;
+        const newAchievements = { ...achievements }; // Create a mutable copy
+
+        const today = new Date();
+        const todayString = today.toDateString();
+        
+        // --- 1. Login-based Achievements ---
+        if (newAchievements.lastLoginDate !== todayString) {
+            // Award Daily Login
+            if (!newAchievements.dailyLogin) {
+                newAchievements.dailyLogin = true;
+                achievementsUpdated = true;
+            }
+
+            const yesterday = new Date();
+            yesterday.setDate(today.getDate() - 1);
+            
+            // Check for Login Streak
+            const lastLogin = newAchievements.lastLoginDate ? new Date(newAchievements.lastLoginDate) : null;
+            if (lastLogin && lastLogin.toDateString() === yesterday.toDateString()) {
+                newAchievements.loginStreak = (newAchievements.loginStreak || 1) + 1;
+            } else {
+                newAchievements.loginStreak = 1; // Reset or start streak for today's login
+            }
+
+            // Award On a Roll if streak is 3 or more
+            if (newAchievements.loginStreak >= 3 && !newAchievements.onARoll) {
+                newAchievements.onARoll = true;
+                achievementsUpdated = true;
+            }
+            
+            // Update the last login date
+            newAchievements.lastLoginDate = todayString;
+            achievementsUpdated = true;
+
+            // --- 2. Check for No-Spend Day (for yesterday) ---
+            if (newAchievements.lastCheckedNoSpend !== yesterday.toDateString()) {
+                const hasExpenseForYesterday = transactions.some(t => 
+                    t.type === 'expense' && new Date(t.date).toDateString() === yesterday.toDateString()
+                );
+
+                // Award if no expenses yesterday AND the user has at least one transaction ever
+                if (!hasExpenseForYesterday && transactions.length > 0) { 
+                    if (!newAchievements.noSpendDay) {
+                        newAchievements.noSpendDay = true;
+                        achievementsUpdated = true;
+                    }
+                }
+                newAchievements.lastCheckedNoSpend = yesterday.toDateString();
+            }
+        }
+
+        // --- 3. Goal Getter Achievement ---
+        if (!newAchievements.goalGetter) {
+            const hasCompletedGoal = savingsGoals.some(g => (g.currentAmount || 0) >= g.targetAmount);
+            if (hasCompletedGoal) {
+                newAchievements.goalGetter = true;
+                achievementsUpdated = true;
+            }
+        }
+        
+        // --- 4. Budget Boss Achievement ---
+        // This check runs on the 1st of the month for the previous month's performance.
+        const lastMonth = new Date(today.getFullYear(), today.getMonth(), 0); // Last day of previous month
+        if (today.getDate() === 1 && newAchievements.lastCheckedBudgetBoss !== lastMonth.getMonth()) {
+            const lastMonthYear = lastMonth.getFullYear();
+            const lastMonthMonth = lastMonth.getMonth();
+            
+            const expensesLastMonth = transactions.filter(t => {
+                const tDate = new Date(t.date);
+                return t.type === 'expense' && tDate.getFullYear() === lastMonthYear && tDate.getMonth() === lastMonthMonth;
+            });
+
+            const spendingByCategory = expensesLastMonth.reduce((acc, t) => {
+                acc[t.category] = (acc[t.category] || 0) + (t.amount || 0);
+                return acc;
+            }, {});
+            
+            // Check if every budgeted category is within its limit
+            const isUnderBudget = Object.keys(budgets).every(cat => 
+                (spendingByCategory[cat] || 0) <= (budgets[cat] || 0)
+            );
+
+            if (Object.keys(budgets).length > 0 && isUnderBudget && !newAchievements.budgetBoss) {
+                newAchievements.budgetBoss = true;
+                achievementsUpdated = true;
+            }
+            newAchievements.lastCheckedBudgetBoss = lastMonth.getMonth();
+            achievementsUpdated = true;
+        }
+
+        // --- Update Firestore only if any achievement changed ---
+        if (achievementsUpdated) {
+            const achievementsRef = doc(db, `users/${user.uid}/settings/achievements`);
+            setDoc(achievementsRef, newAchievements, { merge: true })
+                .catch(err => console.error("Failed to update achievements:", err));
+        }
+
+    }, [loadingData, db, user, transactions, savingsGoals, budgets, achievements]);
 
     // --- CRUD Handlers ---
     const createCrudHandlers = (collectionName) => ({
@@ -247,22 +350,12 @@ function BudgetApp({ user, auth }) {
     const liabilityHandlers = createCrudHandlers('liabilities');
     const savingsGoalHandlers = createCrudHandlers('savingsGoals');
 
-    const handleSaveSettings = async (settings) => {
+    const handleSaveSettings = async (newBudgets, newCategories) => {
         if (!db || !user) return;
-        const { budgets: newBudgets, categories: newCategories, preferences: newPreferences } = settings;
         const batch = writeBatch(db);
-        if (newBudgets) batch.set(doc(db, `users/${user.uid}/settings/budgets`), newBudgets, { merge: true });
-        if (newCategories) batch.set(doc(db, `users/${user.uid}/settings/categories`), newCategories);
-        if (newPreferences) batch.set(doc(db, `users/${user.uid}/settings/preferences`), newPreferences, { merge: true });
-        
-        try { 
-            await batch.commit(); 
-            if (newPreferences && newPreferences.currency) {
-                setCurrency(newPreferences.currency);
-                setCurrencySymbol(currencyMap[newPreferences.currency] || '£');
-            }
-            alert("Settings saved!"); 
-        } 
+        batch.set(doc(db, `users/${user.uid}/settings/budgets`), newBudgets, { merge: true });
+        batch.set(doc(db, `users/${user.uid}/settings/categories`), newCategories);
+        try { await batch.commit(); alert("Settings saved!"); } 
         catch (e) { console.error("Error saving settings:", e); setError("Could not save settings."); }
     };
 
@@ -272,19 +365,12 @@ function BudgetApp({ user, auth }) {
 
     if (error) return <div className="flex items-center justify-center h-screen bg-slate-900 text-red-400">{error}</div>;
 
-    const appProps = {
-        transactions, subscriptions, budgets, categories, assets, liabilities, savingsGoals, achievements,
-        transactionHandlers, subscriptionHandlers, assetHandlers, liabilityHandlers, savingsGoalHandlers,
-        handleSaveSettings,
-        currency, currencySymbol
-    };
-
     return (
         <div className="bg-gradient-to-br from-slate-900 to-black text-white min-h-screen font-sans">
             <div className="flex">
                  {/* Sidebar Navigation */}
-                <aside className="w-64 bg-slate-900/70 backdrop-blur-xl border-r border-white/10 p-6 min-h-screen flex-col hidden lg:flex">
-                    <h1 className="text-3xl font-bold text-white mb-10">Penny</h1>
+                 <aside className="w-64 bg-slate-900/70 backdrop-blur-xl border-r border-white/10 p-6 min-h-screen flex-col hidden lg:flex">
+                    <h1 className="text-3xl font-bold text-white mb-10">Fin.ai</h1>
                     <nav className="flex flex-col space-y-2">
                         <SideNavButton icon={LayoutDashboard} label="Dashboard" activeView={activeView} onClick={() => setActiveView('dashboard')} />
                         <SideNavButton icon={List} label="Transactions" activeView={activeView} onClick={() => setActiveView('transactions')} />
@@ -299,11 +385,17 @@ function BudgetApp({ user, auth }) {
                         <SideNavButton icon={Settings} label="Settings" activeView={activeView} onClick={() => setActiveView('settings')} />
                     </nav>
                     <div className="mt-auto">
-                        <div className="p-3 bg-slate-800/50 rounded-xl flex items-center gap-3 border border-slate-700/50">
-                            <img src={user.photoURL || `https://api.dicebear.com/8.x/initials/svg?seed=${user.email}`} alt="User" className="w-10 h-10 rounded-full" />
-                            <div>
-                                <p className="font-semibold text-white text-sm truncate">{user.displayName || user.email.split('@')[0]}</p>
-                                <p className="text-xs text-slate-400">Welcome Back</p>
+                        <div className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                            {user.photoURL ? (
+                                <img src={user.photoURL} alt="Profile" className="w-10 h-10 rounded-full" />
+                            ) : (
+                                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white flex-shrink-0">
+                                    {user.email ? user.email[0].toUpperCase() : 'U'}
+                                </div>
+                            )}
+                            <div className="overflow-hidden">
+                                <p className="font-semibold text-white truncate">{user.displayName || user.email?.split('@')[0]}</p>
+                                <p className="text-xs text-slate-400 truncate">{user.email}</p>
                             </div>
                         </div>
                     </div>
@@ -315,22 +407,25 @@ function BudgetApp({ user, auth }) {
                             <h2 className="text-2xl font-bold text-white">Hello, {user.displayName || user.email?.split('@')[0]}!</h2>
                             <p className="text-slate-400 mt-1">Here's your financial overview for today.</p>
                         </div>
-                        <div className="flex items-center space-x-2 sm:space-x-4 mt-4 sm:mt-0">
+                        <div className="flex items-center space-x-4 mt-4 sm:mt-0">
                            <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-slate-800/50 border border-slate-700 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-36 sm:w-48" />
+                                <input type="text" placeholder="Search transactions..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="bg-slate-800/50 border border-slate-700 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-48 sm:w-64" />
                            </div>
                            <button 
-                                onClick={() => setIsAddTxDialogOpen(true)} 
-                                className="flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-lg shadow-blue-600/30"
+                                onClick={() => setIsAddTxDialogOpen(true)}
+                                className="flex-shrink-0 p-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors transform hover:scale-105 shadow-lg shadow-blue-600/20"
                                 aria-label="Add new transaction"
                             >
-                                <Plus size={20} />
-                            </button>
-                           <button onClick={handleLogout} className="flex-shrink-0 flex items-center justify-center gap-2 bg-slate-800/50 hover:bg-red-600/50 border border-slate-700 hover:border-red-500 text-white font-bold w-10 h-10 sm:w-auto sm:px-4 rounded-lg transition-colors">
+                                <Plus size={18} />
+                           </button>
+                           <button 
+                                onClick={handleLogout} 
+                                className="flex-shrink-0 p-2.5 bg-slate-800/50 hover:bg-red-600/50 border border-slate-700 hover:border-red-500 text-white font-bold rounded-lg transition-colors"
+                                aria-label="Logout"
+                            >
                                 <LogOut size={16} />
-                                <span className="hidden sm:inline sm:ml-2">Logout</span>
-                            </button>
+                           </button>
                         </div>
                     </header>
                     
@@ -361,25 +456,25 @@ function BudgetApp({ user, auth }) {
                                 exit={{ opacity: 0, y: -20 }}
                                 transition={{ duration: 0.3 }}
                             >
-                                {activeView === 'dashboard' && <DashboardView {...appProps} onNavigate={setActiveView} onAddTransaction={() => setIsAddTxDialogOpen(true)} />}
-                                {activeView === 'transactions' && <TransactionListView transactions={transactions.filter(t => t.description.toLowerCase().includes(searchQuery.toLowerCase()))} handleDeleteTransaction={transactionHandlers.delete} currency={currency} currencySymbol={currencySymbol} />}
-                                {activeView === 'scenarios' && <ScenariosView {...appProps} />}
-                                {activeView === 'calendar' && <CalendarView {...appProps} />}
-                                {activeView === 'subscriptions' && <SubscriptionsView {...appProps} onAdd={() => setIsAddSubDialogOpen(true)} onDelete={subscriptionHandlers.delete} />}
-                                {activeView === 'net worth' && <NetWorthView {...appProps} />}
-                                {activeView === 'goals' && <SavingsGoalsView {...appProps} />}
-                                {activeView === 'debt' && <DebtPlannerView {...appProps} />}
-                                {activeView === 'achievements' && <AchievementsView {...appProps} />}
-                                {activeView === 'coach' && <FinancialCoachView {...appProps} />}
-                                {activeView === 'settings' && <SettingsView {...appProps} initialBudgets={budgets} initialCategories={categories} onSave={handleSaveSettings} />}
+                                {activeView === 'dashboard' && <DashboardView transactions={transactions} budgets={budgets} savingsGoals={savingsGoals} onNavigate={setActiveView} onAddTransaction={() => setIsAddTxDialogOpen(true)} />}
+                                {activeView === 'transactions' && <TransactionListView transactions={transactions.filter(t => t.description.toLowerCase().includes(searchQuery.toLowerCase()))} handleDeleteTransaction={transactionHandlers.delete} />}
+                                {activeView === 'scenarios' && <ScenariosView transactions={transactions} />}
+                                {activeView === 'calendar' && <CalendarView transactions={transactions} subscriptions={subscriptions} />}
+                                {activeView === 'subscriptions' && <SubscriptionsView subscriptions={subscriptions} onAdd={() => setIsAddSubDialogOpen(true)} onDelete={subscriptionHandlers.delete} />}
+                                {activeView === 'net worth' && <NetWorthView assets={assets} liabilities={liabilities} handlers={{asset: assetHandlers, liability: liabilityHandlers}} />}
+                                {activeView === 'goals' && <SavingsGoalsView goals={savingsGoals} handlers={savingsGoalHandlers} />}
+                                {activeView === 'debt' && <DebtPlannerView />}
+                                {activeView === 'achievements' && <AchievementsView achievements={achievements} />}
+                                {activeView === 'coach' && <FinancialCoachView transactions={transactions} budgets={budgets} subscriptions={subscriptions} />}
+                                {activeView === 'settings' && <SettingsView initialBudgets={budgets} initialCategories={categories} onSave={handleSaveSettings} subscriptions={subscriptions} />}
                             </motion.div>
                         </AnimatePresence>
                     )}
                 </main>
             </div>
             <AnimatePresence>
-                {isAddTxDialogOpen && <AddTransactionDialog categories={categories} onClose={() => setIsAddTxDialogOpen(false)} onAdd={async (transaction) => { await transactionHandlers.add(transaction); setIsAddTxDialogOpen(false); }} currencySymbol={currencySymbol} />}
-                {isAddSubDialogOpen && <AddSubscriptionDialog onClose={() => setIsAddSubDialogOpen(false)} onAdd={async (subscription) => { await subscriptionHandlers.add(subscription); setIsAddSubDialogOpen(false); }} currencySymbol={currencySymbol} />}
+                {isAddTxDialogOpen && <AddTransactionDialog categories={categories} onClose={() => setIsAddTxDialogOpen(false)} onAdd={async (transaction) => { await transactionHandlers.add(transaction); setIsAddTxDialogOpen(false); }} />}
+                {isAddSubDialogOpen && <AddSubscriptionDialog onClose={() => setIsAddSubDialogOpen(false)} onAdd={async (subscription) => { await subscriptionHandlers.add(subscription); setIsAddSubDialogOpen(false); }} />}
             </AnimatePresence>
         </div>
     );
@@ -396,7 +491,7 @@ const SideNavButton = ({ icon: Icon, label, activeView, onClick }) => (
 
 
 // --- REVAMPED DASHBOARD VIEW ---
-function DashboardView({ transactions, budgets, savingsGoals, onNavigate, onAddTransaction, currency, currencySymbol }) {
+function DashboardView({ transactions, budgets, savingsGoals, onNavigate, onAddTransaction }) {
     const thisMonthTx = useMemo(() => {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -469,9 +564,9 @@ function DashboardView({ transactions, budgets, savingsGoals, onNavigate, onAddT
             {/* Main column */}
             <div className="col-span-12 lg:col-span-8 space-y-6">
                 <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <SummaryCard title="This Month's Income" amount={summary.income} icon={ArrowUpRight} color="text-green-400" bgColor="bg-green-500/10" currency={currency} currencySymbol={currencySymbol} />
-                    <SummaryCard title="This Month's Expense" amount={summary.expense} icon={ArrowDownLeft} color="text-red-400" bgColor="bg-red-500/10" currency={currency} currencySymbol={currencySymbol} />
-                    <SummaryCard title="This Month's Balance" amount={balance} icon={Banknote} color={balance >= 0 ? "text-sky-400" : "text-orange-400"} bgColor={balance >= 0 ? "bg-sky-500/10" : "bg-orange-500/10"} currency={currency} currencySymbol={currencySymbol} />
+                    <SummaryCard title="This Month's Income" amount={summary.income} icon={ArrowUpRight} color="text-green-400" bgColor="bg-green-500/10" />
+                    <SummaryCard title="This Month's Expense" amount={summary.expense} icon={ArrowDownLeft} color="text-red-400" bgColor="bg-red-500/10" />
+                    <SummaryCard title="This Month's Balance" amount={balance} icon={PoundSterling} color={balance >= 0 ? "text-sky-400" : "text-orange-400"} bgColor={balance >= 0 ? "bg-sky-500/10" : "bg-orange-500/10"} />
                 </motion.div>
 
                 <motion.div variants={itemVariants}>
@@ -490,8 +585,8 @@ function DashboardView({ transactions, budgets, savingsGoals, onNavigate, onAddT
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                                 <XAxis dataKey="name" tick={{ fill: '#9ca3af' }} />
-                                <YAxis tick={{ fill: '#9ca3af' }} tickFormatter={(v) => `${currencySymbol}${v/1000}k`} />
-                                <Tooltip content={<CustomTooltip currency={currency} currencySymbol={currencySymbol} />} />
+                                <YAxis tick={{ fill: '#9ca3af' }} tickFormatter={(v) => `£${v/1000}k`} />
+                                <Tooltip content={<CustomTooltip />} />
                                 <Legend />
                                 <Area type="monotone" dataKey="income" stroke="#4ade80" fillOpacity={1} fill="url(#colorIncome)" />
                                 <Area type="monotone" dataKey="expense" stroke="#f87171" fillOpacity={1} fill="url(#colorExpense)" />
@@ -501,23 +596,23 @@ function DashboardView({ transactions, budgets, savingsGoals, onNavigate, onAddT
                 </motion.div>
                 
                  <motion.div variants={itemVariants}>
-                    <RecentActivity transactions={transactions.slice(0, 5)} currency={currency} currencySymbol={currencySymbol} />
+                    <RecentActivity transactions={transactions.slice(0, 5)} />
                 </motion.div>
             </div>
 
             {/* Side column */}
             <div className="col-span-12 lg:col-span-4 space-y-6">
                  <motion.div variants={itemVariants}>
-                    <CurrencyConverter defaultFrom={currency} />
+                    <TipOfTheDay />
                 </motion.div>
                 <motion.div variants={itemVariants}>
                     <FinancialHealthScore income={summary.income} expense={summary.expense} goals={savingsGoals} />
                 </motion.div>
                 <motion.div variants={itemVariants}>
-                    <SavingsGoalsWidget goals={savingsGoals} onNavigate={onNavigate} currency={currency} currencySymbol={currencySymbol} />
+                    <SavingsGoalsWidget goals={savingsGoals} onNavigate={onNavigate} />
                 </motion.div>
                  <motion.div variants={itemVariants}>
-                    <BudgetStatus budgets={budgets} expenses={thisMonthTx.filter(t => t.type === 'expense')} onNavigate={onNavigate} currency={currency} currencySymbol={currencySymbol} />
+                    <BudgetStatus budgets={budgets} expenses={thisMonthTx.filter(t => t.type === 'expense')} onNavigate={onNavigate} />
                 </motion.div>
             </div>
         </motion.div>
@@ -527,7 +622,7 @@ function DashboardView({ transactions, budgets, savingsGoals, onNavigate, onAddT
 
 // --- New Dashboard Components ---
 
-const RecentActivity = ({ transactions, currency, currencySymbol }) => (
+const RecentActivity = ({ transactions }) => (
     <ChartCard title="Recent Activity">
         <div className="space-y-3">
             <AnimatePresence>
@@ -551,7 +646,7 @@ const RecentActivity = ({ transactions, currency, currencySymbol }) => (
                             </div>
                         </div>
                         <p className={`font-bold ${tx.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
-                            {tx.type === 'income' ? '+' : '-'}{currencySymbol}{parseFloat(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {tx.type === 'income' ? '+' : '-'}£{parseFloat(tx.amount).toLocaleString('en-GB')}
                         </p>
                     </motion.div>
                 ))}
@@ -564,35 +659,64 @@ const TipOfTheDay = () => {
     const [tip, setTip] = useState('');
     const [loading, setLoading] = useState(true);
 
+    const fetchTip = async () => {
+        setLoading(true);
+        try {
+            // Added more context to the prompt for better, non-repetitive tips
+            const prompt = `Give me a short, actionable financial tip on how to save money. Make it specific and concise (1-2 sentences). For context, today is ${new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
+            const response = await callGeminiApi(prompt, true);
+            setTip(response.replace(/\"/g, "").replace(/\*\*/g, ""));
+        } catch (error) {
+            console.error("Failed to fetch tip:", error);
+            // Cycle through a variety of useful fallback tips
+            const fallbackTips = [
+                "Consider setting up a direct debit to a savings account for the day you get paid.",
+                "Use a price comparison website before renewing car or home insurance.",
+                "Review your monthly subscriptions and cancel any you no longer use. It all adds up!",
+                "Take a packed lunch to work a few times a week. You could save over £50 a month.",
+                "Check if you're eligible for tax relief on work-from-home expenses on the GOV.UK website."
+            ];
+            setTip(fallbackTips[Math.floor(Math.random() * fallbackTips.length)]);
+        }
+        setLoading(false);
+    };
+
     useEffect(() => {
-        const fetchTip = async () => {
-            setLoading(true);
-            try {
-                const response = await callGeminiApi("Give me a short, actionable financial tip for someone in the UK.", true);
-                setTip(response);
-            } catch (error) {
-                console.error("Failed to fetch tip:", error);
-                setTip("Check your bank statements regularly to spot unusual activity.");
-            }
-            setLoading(false);
-        };
         fetchTip();
     }, []);
 
     return (
-        <div className="bg-gradient-to-tr from-blue-500/20 to-slate-800/50 backdrop-blur-md border border-white/10 p-6 rounded-xl shadow-lg">
-            <div className="flex items-start gap-4">
-                <div className="bg-blue-500/50 text-white p-2 rounded-full">
-                    <Lightbulb size={20} />
+        <div className="bg-gradient-to-br from-blue-600/30 to-slate-800/50 backdrop-blur-md border border-white/10 p-6 rounded-2xl shadow-lg flex flex-col h-full">
+            <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-3">
+                    <div className="bg-blue-500/50 text-white p-2 rounded-full">
+                        <Lightbulb size={20} />
+                    </div>
+                    <h3 className="font-bold text-white text-lg">Tip of the Day</h3>
                 </div>
-                <div>
-                    <h3 className="font-bold text-white mb-1">Tip of the Day</h3>
-                    {loading ? (
-                        <p className="text-sm text-slate-300 animate-pulse">Fetching a great tip for you...</p>
-                    ) : (
-                        <p className="text-sm text-slate-300">{tip}</p>
-                    )}
-                </div>
+                <button 
+                    onClick={fetchTip} 
+                    disabled={loading} 
+                    className="text-slate-400 hover:text-white disabled:text-slate-600 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Get new tip"
+                >
+                    <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+                </button>
+            </div>
+
+            <div className="flex-grow flex items-center min-h-[6rem]">
+                {loading ? (
+                    <div className="w-full space-y-3 animate-pulse">
+                        <div className="h-4 bg-slate-700 rounded w-3/4"></div>
+                        <div className="h-4 bg-slate-700 rounded w-1/2"></div>
+                    </div>
+                ) : (
+                    <blockquote className="border-l-4 border-blue-400 pl-4">
+                        <p className="text-base italic text-slate-200">
+                            "{tip}"
+                        </p>
+                    </blockquote>
+                )}
             </div>
         </div>
     );
@@ -663,21 +787,21 @@ const FinancialHealthScore = ({ income, expense, goals }) => {
 
 // --- Views (Existing ones with minor tweaks if needed) ---
 
-function TransactionListView({ transactions, handleDeleteTransaction, currency, currencySymbol }) {
+function TransactionListView({ transactions, handleDeleteTransaction }) {
     return (
         <div className="bg-slate-800/50 backdrop-blur-md border border-white/10 p-4 sm:p-6 rounded-xl shadow-lg">
             <h2 className="text-xl font-semibold text-white mb-4">All Transactions</h2>
-            {transactions.length > 0 ? <TransactionList transactions={transactions} handleDeleteTransaction={handleDeleteTransaction} currency={currency} currencySymbol={currencySymbol} /> : <EmptyState illustration={<EmptyWalletIllustration/>} message="No transactions yet. Add one to get started!"/>}
+            {transactions.length > 0 ? <TransactionList transactions={transactions} handleDeleteTransaction={handleDeleteTransaction} /> : <EmptyState illustration={<EmptyWalletIllustration/>} message="No transactions yet. Add one to get started!"/>}
         </div>
     );
 }
 
-function SubscriptionsView({ subscriptions, onAdd, onDelete, currency, currencySymbol }) {
+function SubscriptionsView({ subscriptions, onAdd, onDelete }) {
     const totalMonthlyCost = useMemo(() => subscriptions.reduce((total, sub) => total + (sub.amount || 0), 0), [subscriptions]);
     return (
         <div className="bg-slate-800/50 backdrop-blur-md border border-white/10 p-6 rounded-xl shadow-lg">
             <div className="flex justify-between items-center mb-6">
-                <div><h2 className="text-2xl font-semibold text-white">Subscriptions & Bills</h2><p className="text-slate-400 mt-1">Total Monthly Cost: <span className="font-bold text-sky-400">{currencySymbol}{totalMonthlyCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p></div>
+                <div><h2 className="text-2xl font-semibold text-white">Subscriptions & Bills</h2><p className="text-slate-400 mt-1">Total Monthly Cost: <span className="font-bold text-sky-400">£{totalMonthlyCost.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p></div>
                 <button onClick={onAdd} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"><Plus size={16} /> Add New</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -692,7 +816,7 @@ function SubscriptionsView({ subscriptions, onAdd, onDelete, currency, currencyS
                             <div><h3 className="font-bold text-white">{sub.name}</h3><p className="text-sm text-slate-400">{sub.category}</p></div>
                             <button onClick={() => onDelete(sub.id)} className="text-slate-500 hover:text-red-500"><Trash2 size={16} /></button>
                         </div>
-                        <div className="mt-4 flex justify-between items-end"><p className="text-xl font-bold text-green-400">{currencySymbol}{sub.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p></div>
+                        <div className="mt-4 flex justify-between items-end"><p className="text-xl font-bold text-green-400">£{sub.amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p></div>
                     </motion.div>
                 ))}
             </div>
@@ -701,12 +825,11 @@ function SubscriptionsView({ subscriptions, onAdd, onDelete, currency, currencyS
     );
 }
 
-function SettingsView({ initialBudgets, initialCategories, onSave, subscriptions, currency, currencySymbol }) {
+function SettingsView({ initialBudgets, initialCategories, onSave, subscriptions }) {
     const [budgets, setBudgets] = useState(initialBudgets || {});
     const [categories, setCategories] = useState(initialCategories || { expense: [], income: [] });
     const [newCat, setNewCat] = useState({ type: 'expense', name: '' });
     const [isGenerating, setIsGenerating] = useState(false);
-    const [currentCurrency, setCurrentCurrency] = useState(currency);
 
     const subscriptionTotals = useMemo(() => {
         const totals = { Bills: 0, Subscriptions: 0 };
@@ -718,19 +841,11 @@ function SettingsView({ initialBudgets, initialCategories, onSave, subscriptions
     const handleAddCategory = () => { if (newCat.name.trim() === '') return; setCategories(p => ({ ...p, [newCat.type]: [...(p[newCat.type] || []), newCat.name.trim()] })); setNewCat({ type: 'expense', name: '' }); };
     const handleRemoveCategory = (type, cat) => setCategories(p => ({ ...p, [type]: p[type].filter(c => c !== cat) }));
     
-    const handleSaveAll = () => {
-        onSave({
-            budgets: budgets,
-            categories: categories,
-            preferences: { currency: currentCurrency }
-        });
-    };
-
     const handleGetAISuggestions = async () => {
         setIsGenerating(true);
         const totalIncome = Object.values(budgets).filter((_, i) => categories.income.includes(Object.keys(budgets)[i])).reduce((t, a) => t + a, 0); // Simplified income
         const fixedExpenses = subscriptionTotals.Bills + subscriptionTotals.Subscriptions;
-        const prompt = `My monthly income is ${currencySymbol}${totalIncome || 2000}. My fixed monthly bills and subscriptions total ${currencySymbol}${fixedExpenses}. Suggest a monthly budget based on the 50/30/20 rule for these categories: ${categories.expense.join(', ')}.`;
+        const prompt = `My monthly income is £${totalIncome || 2000}. My fixed monthly bills and subscriptions total £${fixedExpenses}. Suggest a monthly budget based on the 50/30/20 rule for these categories: ${categories.expense.join(', ')}.`;
         try {
             const suggestedBudgets = await callGeminiApi(prompt, false, {
                 type: "OBJECT",
@@ -756,15 +871,6 @@ function SettingsView({ initialBudgets, initialCategories, onSave, subscriptions
             <h2 className="text-2xl font-semibold text-white mb-6">Settings</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
-                     <h3 className="text-xl font-semibold text-white mb-4">Preferences</h3>
-                    <div className="mb-6">
-                        <label htmlFor="currency" className="block text-sm text-slate-400 mb-2">Primary Currency</label>
-                        <select id="currency" value={currentCurrency} onChange={e => setCurrentCurrency(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg p-2 text-white">
-                            <option value="GBP">GBP (£)</option>
-                            <option value="USD">USD ($)</option>
-                            <option value="EUR">EUR (€)</option>
-                        </select>
-                    </div>
                     <h3 className="text-xl font-semibold text-white mb-4">Manage Categories</h3>
                     <div className="flex gap-2 mb-4">
                         <input type="text" placeholder="New category name" value={newCat.name} onChange={e => setNewCat(p => ({...p, name: e.target.value}))} className="flex-grow bg-slate-700 border border-slate-600 rounded-lg p-2 text-white" />
@@ -779,7 +885,7 @@ function SettingsView({ initialBudgets, initialCategories, onSave, subscriptions
                 <div>
                     <div className="flex justify-between items-baseline mb-4">
                         <h3 className="text-xl font-semibold text-white">Set Monthly Budgets</h3>
-                        <p className="text-slate-400">Total: <span className="font-bold text-sky-400">{currencySymbol}{totalBudgeted.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></p>
+                        <p className="text-slate-400">Total: <span className="font-bold text-sky-400">£{totalBudgeted.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></p>
                     </div>
                     <button onClick={handleGetAISuggestions} disabled={isGenerating} className="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg transition-colors mb-4 disabled:bg-slate-600">
                         <Sparkles size={16} /> {isGenerating ? 'Generating...' : 'Get AI Suggestions'}
@@ -789,20 +895,20 @@ function SettingsView({ initialBudgets, initialCategories, onSave, subscriptions
                             <div key={cat} className="flex justify-between items-center">
                                 <label className="text-slate-300">{cat}</label>
                                 <div className="flex items-center gap-2">
-                                    {(cat === 'Bills' || cat === 'Subscriptions') && subscriptionTotals[cat] > 0 && (<span className="text-xs text-slate-400">(Current: {currencySymbol}{subscriptionTotals[cat].toFixed(2)})</span>)}
-                                    <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{currencySymbol}</span><input type="number" value={budgets[cat] || ''} onChange={e => handleBudgetChange(cat, e.target.value)} placeholder="0.00" className="w-32 bg-slate-700 border border-slate-600 rounded-lg py-2 pl-7 pr-2 text-white text-right" /></div>
+                                    {(cat === 'Bills' || cat === 'Subscriptions') && subscriptionTotals[cat] > 0 && (<span className="text-xs text-slate-400">(Current: £{subscriptionTotals[cat].toFixed(2)})</span>)}
+                                    <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">£</span><input type="number" value={budgets[cat] || ''} onChange={e => handleBudgetChange(cat, e.target.value)} placeholder="0.00" className="w-32 bg-slate-700 border border-slate-600 rounded-lg py-2 pl-7 pr-2 text-white text-right" /></div>
                                 </div>
                             </div>
                         ))}
                     </div>
                 </div>
             </div>
-            <div className="mt-8 text-right"><button onClick={handleSaveAll} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">Save All Settings</button></div>
+            <div className="mt-8 text-right"><button onClick={() => onSave(budgets, categories)} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">Save All Settings</button></div>
         </div>
     );
 }
 
-function FinancialCoachView({ transactions, budgets, subscriptions, currencySymbol }) {
+function FinancialCoachView({ transactions, budgets, subscriptions }) {
     const [question, setQuestion] = useState('');
     const [scenario, setScenario] = useState('');
     const [answer, setAnswer] = useState('');
@@ -815,10 +921,9 @@ function FinancialCoachView({ transactions, budgets, subscriptions, currencySymb
         setAnswer('');
 
         const financialSummary = `
-            - Currency: ${currencySymbol}
-            - Recent Transactions: ${transactions.slice(0, 10).map(t => `${t.description}: ${currencySymbol}${t.amount}`).join(', ')}
+            - Recent Transactions: ${transactions.slice(0, 10).map(t => `${t.description}: £${t.amount}`).join(', ')}
             - Budgets: ${JSON.stringify(budgets)}
-            - Subscriptions: ${subscriptions.map(s => `${s.name}: ${currencySymbol}${s.amount}`).join(', ')}
+            - Subscriptions: ${subscriptions.map(s => `${s.name}: £${s.amount}`).join(', ')}
         `;
         
         const prompt = isScenario 
@@ -865,7 +970,7 @@ function FinancialCoachView({ transactions, budgets, subscriptions, currencySymb
     );
 }
 
-function ScenariosView({ transactions, currency, currencySymbol }) {
+function ScenariosView({ transactions }) {
     // Calculate the current balance from all existing transactions
     const currentBalance = useMemo(() => {
         return transactions.reduce((acc, t) => {
@@ -921,9 +1026,9 @@ function ScenariosView({ transactions, currency, currencySymbol }) {
         <div className="space-y-8">
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <SummaryCard title="Current Balance" amount={currentBalance} icon={Banknote} color="text-sky-400" bgColor="bg-sky-500/10" currency={currency} currencySymbol={currencySymbol} />
-                <SummaryCard title="Projected Change" amount={plannedIncome - plannedExpense} icon={TrendingUp} color={(plannedIncome - plannedExpense) >= 0 ? "text-green-400" : "text-red-400"} bgColor={(plannedIncome - plannedExpense) >= 0 ? "bg-green-500/10" : "bg-red-500/10"} currency={currency} currencySymbol={currencySymbol} />
-                <SummaryCard title="Projected Balance" amount={projectedBalance} icon={ShieldCheck} color={projectedBalance >= 0 ? "text-green-400" : "text-red-400"} bgColor={projectedBalance >= 0 ? "bg-green-500/10" : "bg-red-500/10"} currency={currency} currencySymbol={currencySymbol} />
+                <SummaryCard title="Current Balance" amount={currentBalance} icon={PoundSterling} color="text-sky-400" bgColor="bg-sky-500/10" />
+                <SummaryCard title="Projected Change" amount={plannedIncome - plannedExpense} icon={TrendingUp} color={(plannedIncome - plannedExpense) >= 0 ? "text-green-400" : "text-red-400"} bgColor={(plannedIncome - plannedExpense) >= 0 ? "bg-green-500/10" : "bg-red-500/10"} />
+                <SummaryCard title="Projected Balance" amount={projectedBalance} icon={ShieldCheck} color={projectedBalance >= 0 ? "text-green-400" : "text-red-400"} bgColor={projectedBalance >= 0 ? "bg-green-500/10" : "bg-red-500/10"} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -943,7 +1048,7 @@ function ScenariosView({ transactions, currency, currencySymbol }) {
                             <input id="description" name="description" type="text" value={newItem.description} onChange={handleInputChange} placeholder="e.g., Upcoming freelance payment" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required />
                         </div>
                         <div>
-                            <label htmlFor="amount" className="text-slate-400 text-sm font-bold mb-2 block">Amount ({currencySymbol})</label>
+                            <label htmlFor="amount" className="text-slate-400 text-sm font-bold mb-2 block">Amount (£)</label>
                             <input id="amount" name="amount" type="number" value={newItem.amount} onChange={handleInputChange} placeholder="0.00" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required />
                         </div>
                         <div className="text-right">
@@ -963,7 +1068,7 @@ function ScenariosView({ transactions, currency, currencySymbol }) {
                                 <div>
                                     <p className="text-white">{item.description}</p>
                                     <p className={`text-sm font-bold ${item.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
-                                        {item.type === 'income' ? '+' : '-'} {currencySymbol}{parseFloat(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        {item.type === 'income' ? '+' : '-'} £{parseFloat(item.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
                                     </p>
                                 </div>
                                 <button onClick={() => handleRemoveItem(item.id)} className="text-slate-500 hover:text-red-500"><Trash2 size={16} /></button>
@@ -981,7 +1086,7 @@ function ScenariosView({ transactions, currency, currencySymbol }) {
 
 // --- New Feature Views ---
 
-function NetWorthView({ assets, liabilities, handlers, currency, currencySymbol }) {
+function NetWorthView({ assets, liabilities, handlers }) {
     const [item, setItem] = useState({ type: 'asset', name: '', value: '', interestRate: '', minimumPayment: '' });
     const totalAssets = useMemo(() => assets.reduce((sum, a) => sum + (parseFloat(a.value) || 0), 0), [assets]);
     const totalLiabilities = useMemo(() => liabilities.reduce((sum, l) => sum + (parseFloat(l.value) || 0), 0), [liabilities]);
@@ -1007,12 +1112,12 @@ function NetWorthView({ assets, liabilities, handlers, currency, currencySymbol 
             <div className="text-center bg-slate-800/50 backdrop-blur-md border border-white/10 p-6 rounded-xl">
                 <p className="text-slate-400 text-lg">Your Total Net Worth</p>
                 <p className={`text-5xl font-bold ${netWorth >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {currencySymbol}{netWorth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    £{netWorth.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <FinancialListComponent title="Assets" items={assets} total={totalAssets} color="text-green-400" onDelete={handlers.asset.delete} currencySymbol={currencySymbol} />
-                <FinancialListComponent title="Liabilities" items={liabilities} total={totalLiabilities} color="text-red-400" onDelete={handlers.liability.delete} currencySymbol={currencySymbol} />
+                <FinancialListComponent title="Assets" items={assets} total={totalAssets} color="text-green-400" onDelete={handlers.asset.delete} />
+                <FinancialListComponent title="Liabilities" items={liabilities} total={totalLiabilities} color="text-red-400" onDelete={handlers.liability.delete} />
             </div>
             <form onSubmit={handleAddItem} className="bg-slate-800/50 backdrop-blur-md border border-white/10 p-6 rounded-xl space-y-4">
                 <h3 className="text-xl font-semibold text-white">Add New Item</h3>
@@ -1036,7 +1141,7 @@ function NetWorthView({ assets, liabilities, handlers, currency, currencySymbol 
     );
 }
 
-function FinancialListComponent({ title, items, total, color, onDelete, currencySymbol }) {
+function FinancialListComponent({ title, items, total, color, onDelete }) {
     return (
         <div className="bg-slate-800/50 backdrop-blur-md border border-white/10 p-6 rounded-xl">
             <h2 className={`text-2xl font-semibold text-white mb-4 border-b-2 ${color.replace('text-', 'border-')} pb-2`}>{title}</h2>
@@ -1046,11 +1151,11 @@ function FinancialListComponent({ title, items, total, color, onDelete, currency
                         <div>
                             <p>{item.name}</p>
                             {title === 'Liabilities' && (
-                                <p className="text-xs text-slate-400">{item.interestRate || 0}% APR | Min: {currencySymbol}{item.minimumPayment || 0}</p>
+                                <p className="text-xs text-slate-400">{item.interestRate || 0}% APR | Min: £{item.minimumPayment || 0}</p>
                             )}
                         </div>
                         <div className="flex items-center gap-4">
-                            <span>{currencySymbol}{parseFloat(item.value).toLocaleString(undefined)}</span>
+                            <span>£{parseFloat(item.value).toLocaleString('en-GB')}</span>
                             <button onClick={() => onDelete(item.id)} className="text-slate-500 hover:text-red-500"><Trash2 size={16} /></button>
                         </div>
                     </div>
@@ -1058,13 +1163,13 @@ function FinancialListComponent({ title, items, total, color, onDelete, currency
             </div>
             <div className="flex justify-between font-bold text-lg border-t border-slate-700 pt-2">
                 <span>Total {title}</span>
-                <span className={color}>{currencySymbol}{total.toLocaleString(undefined)}</span>
+                <span className={color}>£{total.toLocaleString('en-GB')}</span>
             </div>
         </div>
     );
 }
 
-function SavingsGoalsView({ goals, handlers, currency, currencySymbol }) {
+function SavingsGoalsView({ goals, handlers }) {
     const [item, setItem] = useState({ name: '', targetAmount: '', currentAmount: 0, dueDate: '' });
     const [contribution, setContribution] = useState({ id: null, amount: '' });
 
@@ -1097,8 +1202,8 @@ function SavingsGoalsView({ goals, handlers, currency, currencySymbol }) {
                                     <div className="bg-green-500 h-4 rounded-full" style={{ width: `${Math.min(percentage, 100)}%` }}></div>
                                 </div>
                                 <div className="flex justify-between text-sm mt-1">
-                                    <span className="text-slate-300">{currencySymbol}{parseFloat(goal.currentAmount || 0).toLocaleString(undefined)}</span>
-                                    <span className="text-slate-400">{currencySymbol}{parseFloat(goal.targetAmount).toLocaleString(undefined)}</span>
+                                    <span className="text-slate-300">£{parseFloat(goal.currentAmount || 0).toLocaleString('en-GB')}</span>
+                                    <span className="text-slate-400">£{parseFloat(goal.targetAmount).toLocaleString('en-GB')}</span>
                                 </div>
                                 {goal.dueDate && <p className="text-xs text-slate-400 mt-1">Due: {new Date(goal.dueDate).toLocaleDateString('en-GB')}</p>}
                             </div>
@@ -1124,7 +1229,7 @@ function SavingsGoalsView({ goals, handlers, currency, currencySymbol }) {
     );
 }
 
-function DebtPlannerView({ currency, currencySymbol }) {
+function DebtPlannerView() {
     const [extraPayment, setExtraPayment] = useState(100);
     const [strategy, setStrategy] = useState('avalanche'); // 'avalanche' or 'snowball'
     const [schedule, setSchedule] = useState(null);
@@ -1219,13 +1324,16 @@ function DebtPlannerView({ currency, currencySymbol }) {
             paymentSchedule.push({
                 month: months,
                 totalBalance: workingDebts.reduce((sum, d) => sum + Math.max(0, d.balance), 0),
+                totalInterestPaidToDate: totalInterestPaid,
+                monthlyTotalPayment: totalPaymentsThisMonth,
+                monthlyInterest: currentMonthInterestAccrued
             });
         }
         setSchedule({ months, totalInterestPaid, paymentSchedule });
     };
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 p-4 md:p-8 text-white">
             {/* Input and Strategy Controls */}
             <div className="bg-slate-800/50 backdrop-blur-md border border-white/10 p-6 rounded-xl shadow-lg">
                 <h2 className="text-2xl font-semibold text-white mb-4">Debt Paydown Planner</h2>
@@ -1243,7 +1351,7 @@ function DebtPlannerView({ currency, currencySymbol }) {
                         </select>
                     </div>
                     <div>
-                        <label htmlFor="extraPayment" className="block text-sm text-slate-400 mb-1">Extra Monthly Payment ({currencySymbol})</label>
+                        <label htmlFor="extraPayment" className="block text-sm text-slate-400 mb-1">Extra Monthly Payment (£)</label>
                         <input
                             id="extraPayment"
                             type="number"
@@ -1278,7 +1386,7 @@ function DebtPlannerView({ currency, currencySymbol }) {
                         />
                     </div>
                     <div>
-                        <label htmlFor="debtBalance" className="block text-sm text-slate-400 mb-1">Current Balance ({currencySymbol})</label>
+                        <label htmlFor="debtBalance" className="block text-sm text-slate-400 mb-1">Current Balance (£)</label>
                         <input
                             id="debtBalance"
                             type="number"
@@ -1302,7 +1410,7 @@ function DebtPlannerView({ currency, currencySymbol }) {
                         />
                     </div>
                     <div>
-                        <label htmlFor="debtMinPayment" className="block text-sm text-slate-400 mb-1">Min. Payment ({currencySymbol})</label>
+                        <label htmlFor="debtMinPayment" className="block text-sm text-slate-400 mb-1">Min. Payment (£)</label>
                         <input
                             id="debtMinPayment"
                             type="number"
@@ -1330,8 +1438,8 @@ function DebtPlannerView({ currency, currencySymbol }) {
                                 <div key={debt.id} className="bg-slate-700/70 p-4 rounded-lg flex justify-between items-center border border-slate-600">
                                     <div>
                                         <p className="font-bold text-white text-lg">{debt.name}</p>
-                                        <p className="text-sm text-slate-400">Balance: {currencySymbol}{debt.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                                        <p className="text-sm text-slate-400">Rate: {debt.interestRate}% | Min. Payment: {currencySymbol}{debt.minimumPayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                        <p className="text-sm text-slate-400">Balance: £{debt.value.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</p>
+                                        <p className="text-sm text-slate-400">Rate: {debt.interestRate}% | Min. Payment: £{debt.minimumPayment.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</p>
                                     </div>
                                     <button
                                         onClick={() => removeDebt(debt.id)}
@@ -1348,39 +1456,28 @@ function DebtPlannerView({ currency, currencySymbol }) {
 
             {/* Projected Payoff Results */}
             {schedule && (
-                <div className="bg-slate-800/50 backdrop-blur-md border border-white/10 p-6 rounded-xl shadow-lg">
+                <div className="bg-slate-800/50 backdrop-blur-md border border-white/10 p-6 rounded-xl text-center shadow-lg">
                     <h3 className="text-xl font-semibold text-white mb-4">Projected Payoff</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-center mb-6">
-                        <div>
-                            <p className="text-slate-400 text-lg">Payoff Time</p>
-                            <p className="text-4xl font-bold text-green-400">
-                                {Math.floor(schedule.months / 12)}y {schedule.months % 12}m
-                            </p>
+                    {schedule.months === 600 && debts.some(d => d.balance > 0) ? (
+                        <p className="text-lg text-yellow-400">
+                            Calculation stopped after 50 years. You might need a larger extra payment or a different strategy to pay off sooner.
+                        </p>
+                    ) : (
+                        <div className="flex flex-col md:flex-row justify-around gap-6">
+                            <div>
+                                <p className="text-slate-400 text-lg">Payoff Time</p>
+                                <p className="text-4xl font-bold text-green-400">
+                                    {Math.floor(schedule.months / 12)}y {schedule.months % 12}m
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-slate-400 text-lg">Total Interest Paid</p>
+                                <p className="text-4xl font-bold text-red-400">
+                                    £{schedule.totalInterestPaid.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-slate-400 text-lg">Total Interest Paid</p>
-                            <p className="text-4xl font-bold text-red-400">
-                                {currencySymbol}{schedule.totalInterestPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={schedule.paymentSchedule} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                <defs>
-                                    <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.8}/>
-                                        <stop offset="95%" stopColor="#38bdf8" stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                                <XAxis dataKey="month" label={{ value: 'Months', position: 'insideBottom', offset: -5, fill: '#9ca3af' }} tick={{ fill: '#9ca3af' }} />
-                                <YAxis tickFormatter={(value) => `${currencySymbol}${value/1000}k`} tick={{ fill: '#9ca3af' }} />
-                                <Tooltip content={<CustomTooltip currency={currency} currencySymbol={currencySymbol} />} />
-                                <Area type="monotone" dataKey="totalBalance" name="Remaining Debt" stroke="#38bdf8" fill="url(#colorBalance)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
+                    )}
                 </div>
             )}
         </div>
@@ -1388,7 +1485,7 @@ function DebtPlannerView({ currency, currencySymbol }) {
 }
 
 // --- NEW CALENDAR VIEW ---
-function CalendarView({ transactions, subscriptions, currencySymbol }) {
+function CalendarView({ transactions, subscriptions }) {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
@@ -1425,7 +1522,7 @@ function CalendarView({ transactions, subscriptions, currencySymbol }) {
                 <div className="flex-grow overflow-y-auto text-xs space-y-1 mt-1 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
                     {dayEvents.map(event => (
                         <div key={event.id} className={`p-1 rounded text-white ${event.type === 'income' ? 'bg-green-800/50' : 'bg-red-800/50'}`}>
-                            {event.description} - {currencySymbol}{event.amount}
+                            {event.description} - £{event.amount}
                         </div>
                     ))}
                 </div>
@@ -1485,7 +1582,7 @@ function AchievementsView({ achievements }) {
 // --- Reusable Components ---
 const ChartCard = ({ title, children }) => (<div className="bg-slate-800/50 backdrop-blur-md border border-white/10 p-4 sm:p-6 rounded-xl shadow-lg"><h2 className="text-xl font-semibold mb-4 text-white">{title}</h2>{children}</div>);
 
-function SummaryCard({ title, amount, icon: Icon, color, bgColor, currency, currencySymbol }) {
+function SummaryCard({ title, amount, icon: Icon, color, bgColor }) {
     return (
         <motion.div 
             className={`p-5 rounded-xl shadow-lg transition-all duration-300 flex items-center justify-between ${bgColor} border border-white/10 hover:border-blue-500/50`}
@@ -1493,7 +1590,7 @@ function SummaryCard({ title, amount, icon: Icon, color, bgColor, currency, curr
         >
             <div>
                 <p className="text-slate-400 text-sm font-medium">{title}</p>
-                <p className={`text-2xl font-bold ${color}`}>{currencySymbol}{amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p className={`text-2xl font-bold ${color}`}>£{amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </div>
             <div className={`p-3 rounded-full bg-slate-700/50 ${color}`}>
                 <Icon size={24} />
@@ -1502,11 +1599,11 @@ function SummaryCard({ title, amount, icon: Icon, color, bgColor, currency, curr
     );
 }
 
-function TransactionList({ transactions, handleDeleteTransaction, currency, currencySymbol }) {
+function TransactionList({ transactions, handleDeleteTransaction }) {
     if (transactions.length === 0) return <EmptyState illustration={<EmptyWalletIllustration/>} message="No transactions match your criteria."/>;
-    return (<div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="border-b border-slate-700"><th className="p-3 text-sm font-semibold text-slate-400">Date</th><th className="p-3 text-sm font-semibold text-slate-400">Description</th><th className="p-3 text-sm font-semibold text-slate-400">Category</th><th className="p-3 text-sm font-semibold text-slate-400 text-right">Amount</th><th className="p-3 text-sm font-semibold text-slate-400 text-center">Action</th></tr></thead><tbody>{transactions.map(t => (<tr key={t.id} className="border-b border-slate-700 hover:bg-slate-700/50"><td className="p-3 text-slate-300">{new Date(t.date).toLocaleDateString('en-GB')}</td><td className="p-3 text-slate-300">{t.description}</td><td className="p-3 text-slate-300"><span className="bg-slate-700 px-2 py-1 text-xs rounded-full">{t.category}</span></td><td className={`p-3 text-right font-medium ${t.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>{t.type === 'income' ? '+' : '-'} {currencySymbol}{parseFloat(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td className="p-3 text-center"><button onClick={() => handleDeleteTransaction(t.id)} className="text-slate-500 hover:text-red-500"><Trash2 size={16} /></button></td></tr>))}</tbody></table></div>);
+    return (<div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="border-b border-slate-700"><th className="p-3 text-sm font-semibold text-slate-400">Date</th><th className="p-3 text-sm font-semibold text-slate-400">Description</th><th className="p-3 text-sm font-semibold text-slate-400">Category</th><th className="p-3 text-sm font-semibold text-slate-400 text-right">Amount</th><th className="p-3 text-sm font-semibold text-slate-400 text-center">Action</th></tr></thead><tbody>{transactions.map(t => (<tr key={t.id} className="border-b border-slate-700 hover:bg-slate-700/50"><td className="p-3 text-slate-300">{new Date(t.date).toLocaleDateString('en-GB')}</td><td className="p-3 text-slate-300">{t.description}</td><td className="p-3 text-slate-300"><span className="bg-slate-700 px-2 py-1 text-xs rounded-full">{t.category}</span></td><td className={`p-3 text-right font-medium ${t.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>{t.type === 'income' ? '+' : '-'} £{parseFloat(t.amount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td className="p-3 text-center"><button onClick={() => handleDeleteTransaction(t.id)} className="text-slate-500 hover:text-red-500"><Trash2 size={16} /></button></td></tr>))}</tbody></table></div>);
 }
-function AddTransactionDialog({ categories, onClose, onAdd, currencySymbol }) {
+function AddTransactionDialog({ categories, onClose, onAdd }) {
     const [type, setType] = useState('expense');
     const [amount, setAmount] = useState('');
     const [category, setCategory] = useState(categories.expense[0] || 'Other');
@@ -1556,7 +1653,7 @@ function AddTransactionDialog({ categories, onClose, onAdd, currencySymbol }) {
                 <h2 className="text-2xl font-bold mb-6 text-white">Add New Transaction</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div><span className="text-slate-400 text-sm font-bold mb-2 block">Transaction Type</span><div className="flex items-center bg-slate-700 rounded-lg p-1"><button type="button" onClick={() => setType('expense')} className={`flex-1 py-2 text-sm font-medium rounded-md ${type === 'expense' ? 'bg-red-500 text-white' : 'text-slate-300'}`}>Expense</button><button type="button" onClick={() => setType('income')} className={`flex-1 py-2 text-sm font-medium rounded-md ${type === 'income' ? 'bg-green-500 text-white' : 'text-slate-300'}`}>Income</button></div></div>
-                    <div><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="amount">Amount ({currencySymbol})</label><input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div>
+                    <div><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="amount">Amount (£)</label><input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div>
                     <div><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="description">Description</label><div className="flex gap-2"><input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g., Weekly shop at Tesco" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /><button type="button" onClick={handleSuggestCategory} disabled={isSuggesting || type === 'income'} className="flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-3 rounded-lg disabled:bg-slate-600"><Sparkles size={16} /></button></div></div>
                     <div><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="category">Category</label><select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white">{(type === 'expense' ? categories.expense : categories.income).map(cat => (<option key={cat} value={cat}>{cat}</option>))}</select></div>
                     <div><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="date">Date</label><input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div>
@@ -1567,7 +1664,7 @@ function AddTransactionDialog({ categories, onClose, onAdd, currencySymbol }) {
     );
 }
 
-function AddSubscriptionDialog({ onClose, onAdd, currencySymbol }) {
+function AddSubscriptionDialog({ onClose, onAdd }) {
     const [name, setName] = useState(''); const [amount, setAmount] = useState(''); const [category, setCategory] = useState('Subscriptions');
     const handleSubmit = async (e) => { 
         e.preventDefault(); 
@@ -1590,7 +1687,7 @@ function AddSubscriptionDialog({ onClose, onAdd, currencySymbol }) {
                 <h2 className="text-2xl font-bold mb-6 text-white">Add Subscription or Bill</h2>
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-name">Name</label><input id="sub-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Netflix" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div>
-                    <div className="mb-4"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-amount">Amount ({currencySymbol})</label><input id="sub-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div>
+                    <div className="mb-4"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-amount">Amount (£)</label><input id="sub-amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required /></div>
                     <div className="mb-6"><label className="text-slate-400 text-sm font-bold mb-2 block" htmlFor="sub-category">Category</label><select id="sub-category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white"><option value="Subscriptions">Subscriptions</option><option value="Bills">Bills</option></select></div>
                     <div className="flex justify-end gap-4 mt-8"><button type="button" onClick={onClose} className="py-2 px-4 bg-slate-600 hover:bg-slate-500 text-slate-200 font-bold rounded-lg">Cancel</button><button type="submit" className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg">Add Subscription</button></div>
                 </form>
@@ -1599,7 +1696,7 @@ function AddSubscriptionDialog({ onClose, onAdd, currencySymbol }) {
     );
 }
 
-function BudgetStatus({ budgets, expenses, onNavigate, currency, currencySymbol }) {
+function BudgetStatus({ budgets, expenses, onNavigate }) {
     const budgetData = useMemo(() => {
         const expenseByCategory = {};
         expenses.forEach(t => {
@@ -1621,11 +1718,11 @@ function BudgetStatus({ budgets, expenses, onNavigate, currency, currencySymbol 
         </ChartCard>
     );
 
-    return (<ChartCard title="Budget Status"><div className="space-y-4">{budgetData.map(({ cat, bud, spent, percentage }) => (<div key={cat}><div className="flex justify-between mb-1 text-sm"><span className="font-medium text-slate-300">{cat}</span><span className="text-slate-400">{currencySymbol}{spent.toFixed(2)} / {currencySymbol}{bud.toFixed(2)}</span></div><div className="w-full bg-slate-700 rounded-full h-2.5"><div className={`${percentage > 100 ? 'bg-red-500' : 'bg-green-500'} h-2.5 rounded-full transition-all duration-500`} style={{ width: `${Math.min(percentage, 100)}%` }}></div></div></div>))}</div></ChartCard>);
+    return (<ChartCard title="Budget Status"><div className="space-y-4">{budgetData.map(({ cat, bud, spent, percentage }) => (<div key={cat}><div className="flex justify-between mb-1 text-sm"><span className="font-medium text-slate-300">{cat}</span><span className="text-slate-400">£{spent.toFixed(2)} / £{bud.toFixed(2)}</span></div><div className="w-full bg-slate-700 rounded-full h-2.5"><div className={`${percentage > 100 ? 'bg-red-500' : 'bg-green-500'} h-2.5 rounded-full transition-all duration-500`} style={{ width: `${Math.min(percentage, 100)}%` }}></div></div></div>))}</div></ChartCard>);
 }
 
 // --- NEW SAVINGS GOALS WIDGET ---
-function SavingsGoalsWidget({ goals, onNavigate, currency, currencySymbol }) {
+function SavingsGoalsWidget({ goals, onNavigate }) {
     if (goals.length === 0) {
         return (
             <ChartCard title="Savings Goals">
@@ -1684,14 +1781,14 @@ const EmptyPiggyBankIllustration = () => (
     </svg>
 );
 
-const CustomTooltip = ({ active, payload, label, currency, currencySymbol }) => {
+const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
         return (
             <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700 p-3 rounded-lg shadow-lg">
                 <p className="label text-slate-300 font-bold">{`${label}`}</p>
                 {payload.map((pld, index) => (
                     <div key={index} style={{ color: pld.color }}>
-                        {`${pld.name}: ${currencySymbol}${pld.value.toLocaleString(undefined, {minimumFractionDigits: 2})}`}
+                        {`${pld.name}: £${pld.value.toLocaleString('en-GB', {minimumFractionDigits: 2})}`}
                     </div>
                 ))}
             </div>
@@ -1699,98 +1796,6 @@ const CustomTooltip = ({ active, payload, label, currency, currencySymbol }) => 
     }
     return null;
 };
-
-// --- NEW CURRENCY CONVERTER WIDGET ---
-function CurrencyConverter({ defaultFrom }) {
-    const [amount, setAmount] = useState(1);
-    const [fromCurrency, setFromCurrency] = useState(defaultFrom || 'GBP');
-    const [toCurrency, setToCurrency] = useState(defaultFrom === 'USD' ? 'GBP' : 'USD');
-    const [result, setResult] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-
-    const currencies = ['GBP', 'USD', 'EUR', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR'];
-
-    useEffect(() => {
-        setFromCurrency(defaultFrom);
-        setToCurrency(defaultFrom === 'USD' ? 'GBP' : 'USD');
-    }, [defaultFrom]);
-
-    useEffect(() => {
-        if (amount === '' || !fromCurrency || !toCurrency || amount <= 0) {
-            setResult(null);
-            return;
-        }
-        
-        const convert = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${fromCurrency}`);
-                if (!res.ok) throw new Error('Failed to fetch rates');
-                const data = await res.json();
-                const rate = data.rates[toCurrency];
-                if (!rate) throw new Error(`Rate for ${toCurrency} not available.`);
-                setResult((amount * rate).toFixed(2));
-            } catch (err) {
-                setError("Could not fetch rates.");
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        const debounce = setTimeout(() => {
-            convert();
-        }, 500);
-
-        return () => clearTimeout(debounce);
-
-    }, [amount, fromCurrency, toCurrency]);
-
-    const handleSwap = () => {
-        setFromCurrency(toCurrency);
-        setToCurrency(fromCurrency);
-    };
-
-    return (
-        <ChartCard title="Currency Converter">
-            <div className="space-y-4">
-                <div className="grid grid-cols-11 gap-2 items-end">
-                    <div className="col-span-5">
-                        <label className="block text-sm text-slate-400 mb-1">From</label>
-                        <select value={fromCurrency} onChange={e => setFromCurrency(e.target.value)} className="w-full bg-slate-700 p-2 rounded-lg">
-                            {currencies.map(c => <option key={c}>{c}</option>)}
-                        </select>
-                    </div>
-                     <div className="col-span-1">
-                        <button onClick={handleSwap} className="w-full bg-slate-700 hover:bg-slate-600 p-2 rounded-lg flex items-center justify-center">
-                            <RefreshCw size={16} />
-                        </button>
-                    </div>
-                    <div className="col-span-5">
-                        <label className="block text-sm text-slate-400 mb-1">To</label>
-                         <select value={toCurrency} onChange={e => setToCurrency(e.target.value)} className="w-full bg-slate-700 p-2 rounded-lg">
-                            {currencies.map(c => <option key={c}>{c}</option>)}
-                        </select>
-                    </div>
-                </div>
-                <div>
-                     <label className="block text-sm text-slate-400 mb-1">Amount</label>
-                     <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-slate-700 p-2 rounded-lg" />
-                </div>
-                {loading && <div className="text-center text-slate-400">Converting...</div>}
-                {error && <div className="text-center text-red-400">{error}</div>}
-                {result && !loading && (
-                    <div className="text-center bg-slate-700/50 p-4 rounded-lg">
-                        <p className="text-slate-400">{amount} {fromCurrency} =</p>
-                        <p className="text-3xl font-bold text-green-400">{result} {toCurrency}</p>
-                    </div>
-                )}
-            </div>
-        </ChartCard>
-    );
-}
 
 // --- Helper Functions for AI ---
 async function callGeminiApi(prompt, isTextOnly = false, schema = null) {
