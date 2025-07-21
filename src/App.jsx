@@ -3,7 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot, query, setDoc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Legend as RechartsLegend, AreaChart, Area } from 'recharts';
-import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, PoundSterling, List, LayoutDashboard, Settings, Search, Download, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck, LogOut, ChevronLeft, ChevronRight, Award, RefreshCw, TrendingUp, MoreHorizontal, Sun, Moon, Wind } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, PoundSterling, List, LayoutDashboard, Settings, Search, Download, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck, LogOut, ChevronLeft, ChevronRight, Award, RefreshCw, TrendingUp, MoreHorizontal, Sun, Moon, Wind, Lightbulb } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 
@@ -12,15 +12,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 // For the app to work, you MUST replace them with your actual
 // Firebase project configuration in a .env file.
 const firebaseConfig = {
-  apiKey: "AIzaSyCG6J5SSaz3dapBV-fBibpI2JJkK9tJGb4",
-  authDomain: "my-budget-tracker-527a3.firebaseapp.com",
-  projectId: "my-budget-tracker-527a3",
-  storageBucket: "my-budget-tracker-527a3.firebasestorage.app",
-  messagingSenderId: "263272586943",
-  appId: "1:263272586943:web:6479ebcd397db929d9700a"
+    apiKey: import.meta.env.VITE_API_KEY || "YOUR_API_KEY",
+    authDomain: import.meta.env.VITE_AUTH_DOMAIN || "your-auth-domain.firebaseapp.com",
+    projectId: import.meta.env.VITE_PROJECT_ID || "your-project-id",
+    storageBucket: import.meta.env.VITE_STORAGE_BUCKET || "your-project-id.appspot.com",
+    messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID || "your-sender-id",
+    appId: import.meta.env.VITE_APP_ID || "your-app-id"
 };
 
-const GEMINI_API_KEY = "AIzaSyBSxiCYsPcofbzo2lTUBA-m7IZLRABbkOs";
+// Use the environment variable for the Gemini API key
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 
 // --- Helper & Error Components (Defined First) ---
@@ -101,7 +102,7 @@ function LoginPage({ auth }) {
 export default function App() {
     // --- Configuration Check ---
     if (firebaseConfig.apiKey === "YOUR_API_KEY") return <FirebaseConfigError />;
-    if (GEMINI_API_KEY === "YOUR_GEMINI_API_KEY") return <GeminiConfigError />;
+    if (!GEMINI_API_KEY) return <GeminiConfigError />;
 
     // --- State Management ---
     const [auth, setAuth] = useState(null);
@@ -270,7 +271,7 @@ function BudgetApp({ user, auth }) {
                     </div>
                 </aside>
 
-                <main className="flex-1 p-4 sm:p-6 lg:p-8">
+                <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto h-screen">
                     <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
                          <div>
                             <h2 className="text-2xl font-bold text-white">Hello, {user.displayName || user.email?.split('@')[0]}!</h2>
@@ -451,54 +452,103 @@ function DashboardView({ transactions, budgets, savingsGoals, onNavigate, onAddT
                     </ChartCard>
                 </motion.div>
                 
-                <motion.div variants={itemVariants}>
-                    <BudgetStatus budgets={budgets} expenses={thisMonthTx.filter(t => t.type === 'expense')} />
+                 <motion.div variants={itemVariants}>
+                    <RecentActivity transactions={transactions.slice(0, 5)} />
                 </motion.div>
             </div>
 
             {/* Side column */}
             <div className="col-span-12 lg:col-span-4 space-y-6">
-                <motion.div variants={itemVariants}>
-                    <QuickAccess onNavigate={onNavigate} onAddTransaction={onAddTransaction} />
+                 <motion.div variants={itemVariants}>
+                    <TipOfTheDay />
                 </motion.div>
-
                 <motion.div variants={itemVariants}>
                     <FinancialHealthScore income={summary.income} expense={summary.expense} goals={savingsGoals} />
                 </motion.div>
-
                 <motion.div variants={itemVariants}>
-                    <SavingsGoalsWidget goals={savingsGoals} />
+                    <SavingsGoalsWidget goals={savingsGoals} onNavigate={onNavigate} />
+                </motion.div>
+                 <motion.div variants={itemVariants}>
+                    <BudgetStatus budgets={budgets} expenses={thisMonthTx.filter(t => t.type === 'expense')} onNavigate={onNavigate} />
                 </motion.div>
             </div>
         </motion.div>
     );
 }
 
+
 // --- New Dashboard Components ---
 
-const QuickAccess = ({ onNavigate, onAddTransaction }) => (
-    <div className="bg-slate-800/50 backdrop-blur-md border border-white/10 p-6 rounded-xl shadow-lg">
-        <h2 className="text-xl font-semibold mb-4 text-white">Quick Access</h2>
-        <div className="grid grid-cols-2 gap-4">
-            <QuickAccessButton icon={Plus} label="New Tx" onClick={onAddTransaction} />
-            <QuickAccessButton icon={Target} label="Goals" onClick={() => onNavigate('goals')} />
-            <QuickAccessButton icon={Repeat} label="Subs" onClick={() => onNavigate('subscriptions')} />
-            <QuickAccessButton icon={Settings} label="Settings" onClick={() => onNavigate('settings')} />
+const RecentActivity = ({ transactions }) => (
+    <ChartCard title="Recent Activity">
+        <div className="space-y-3">
+            <AnimatePresence>
+                {transactions.map((tx, index) => (
+                    <motion.div
+                        key={tx.id}
+                        layout
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        className="flex items-center justify-between bg-slate-700/30 p-3 rounded-lg"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${tx.type === 'income' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                {tx.type === 'income' ? <ArrowUpRight size={16} /> : <ArrowDownLeft size={16} />}
+                            </div>
+                            <div>
+                                <p className="font-medium text-white">{tx.description}</p>
+                                <p className="text-xs text-slate-400">{new Date(tx.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
+                            </div>
+                        </div>
+                        <p className={`font-bold ${tx.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
+                            {tx.type === 'income' ? '+' : '-'}£{parseFloat(tx.amount).toLocaleString('en-GB')}
+                        </p>
+                    </motion.div>
+                ))}
+            </AnimatePresence>
         </div>
-    </div>
+    </ChartCard>
 );
 
-const QuickAccessButton = ({ icon: Icon, label, onClick }) => (
-    <motion.button 
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={onClick} 
-        className="bg-slate-700/50 hover:bg-slate-700 transition-colors p-4 rounded-lg flex flex-col items-center justify-center gap-2 text-slate-300"
-    >
-        <Icon size={24} />
-        <span className="text-sm font-medium">{label}</span>
-    </motion.button>
-);
+const TipOfTheDay = () => {
+    const [tip, setTip] = useState('');
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchTip = async () => {
+            setLoading(true);
+            try {
+                const response = await callGeminiApi("Give me a short, actionable financial tip for someone in the UK.", true);
+                setTip(response);
+            } catch (error) {
+                console.error("Failed to fetch tip:", error);
+                setTip("Check your bank statements regularly to spot unusual activity.");
+            }
+            setLoading(false);
+        };
+        fetchTip();
+    }, []);
+
+    return (
+        <div className="bg-gradient-to-tr from-blue-500/20 to-slate-800/50 backdrop-blur-md border border-white/10 p-6 rounded-xl shadow-lg">
+            <div className="flex items-start gap-4">
+                <div className="bg-blue-500/50 text-white p-2 rounded-full">
+                    <Lightbulb size={20} />
+                </div>
+                <div>
+                    <h3 className="font-bold text-white mb-1">Tip of the Day</h3>
+                    {loading ? (
+                        <p className="text-sm text-slate-300 animate-pulse">Fetching a great tip for you...</p>
+                    ) : (
+                        <p className="text-sm text-slate-300">{tip}</p>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 
 const FinancialHealthScore = ({ income, expense, goals }) => {
@@ -623,12 +673,16 @@ function SettingsView({ initialBudgets, initialCategories, onSave, subscriptions
         setIsGenerating(true);
         const totalIncome = Object.values(budgets).filter((_, i) => categories.income.includes(Object.keys(budgets)[i])).reduce((t, a) => t + a, 0); // Simplified income
         const fixedExpenses = subscriptionTotals.Bills + subscriptionTotals.Subscriptions;
-        const prompt = `My monthly income is £${totalIncome || 2000}. My fixed monthly bills and subscriptions total £${fixedExpenses}. Suggest a monthly budget based on the 50/30/20 rule for these categories: ${categories.expense.join(', ')}. Respond with only a valid JSON object where keys are category names and values are numbers.`;
+        const prompt = `My monthly income is £${totalIncome || 2000}. My fixed monthly bills and subscriptions total £${fixedExpenses}. Suggest a monthly budget based on the 50/30/20 rule for these categories: ${categories.expense.join(', ')}.`;
         try {
-            const resultText = await callGeminiApi(prompt);
-            const jsonString = extractJson(resultText);
-            if (jsonString) {
-                const suggestedBudgets = JSON.parse(jsonString);
+            const suggestedBudgets = await callGeminiApi(prompt, false, {
+                type: "OBJECT",
+                properties: {
+                    ...categories.expense.reduce((obj, cat) => ({...obj, [cat]: {type: "NUMBER"}}), {})
+                }
+            });
+
+            if (suggestedBudgets) {
                 setBudgets(prev => ({ ...prev, ...suggestedBudgets }));
             } else {
                 throw new Error("No valid JSON found in AI response.");
@@ -705,7 +759,7 @@ function FinancialCoachView({ transactions, budgets, subscriptions }) {
             : `You are a friendly and encouraging UK-based financial coach. Based on the following financial summary, provide a helpful and actionable answer to the user's question. User's question: "${query}". Financial Summary: ${financialSummary}`;
         
         try {
-            const resultText = await callGeminiApi(prompt);
+            const resultText = await callGeminiApi(prompt, true);
             setAnswer(resultText);
         } catch (e) {
             console.error("Error contacting financial coach:", e);
@@ -1392,7 +1446,7 @@ function AddTransactionDialog({ categories, onClose, onAdd }) {
         setIsSuggesting(true);
         const prompt = `Based on the expense description "${description}", suggest the best category from this list: ${categories.expense.join(', ')}. Respond with only the single best category name.`;
         try {
-            const suggestedCategory = await callGeminiApi(prompt);
+            const suggestedCategory = await callGeminiApi(prompt, true);
             if (categories.expense.includes(suggestedCategory.trim())) {
                 setCategory(suggestedCategory.trim());
             }
@@ -1470,7 +1524,7 @@ function AddSubscriptionDialog({ onClose, onAdd }) {
     );
 }
 
-function BudgetStatus({ budgets, expenses }) {
+function BudgetStatus({ budgets, expenses, onNavigate }) {
     const budgetData = useMemo(() => {
         const expenseByCategory = {};
         expenses.forEach(t => {
@@ -1485,7 +1539,10 @@ function BudgetStatus({ budgets, expenses }) {
     
     if (budgetData.length === 0) return (
         <ChartCard title="Budget Status">
-            <EmptyState illustration={<EmptyWalletIllustration />} message="No budgets set. Go to Settings to create some." />
+            <div className="text-center py-10">
+                <p className="text-slate-400 text-sm mb-4">No budgets set. Go to Settings to create some.</p>
+                <button onClick={() => onNavigate('settings')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Go to Settings</button>
+            </div>
         </ChartCard>
     );
 
@@ -1493,11 +1550,14 @@ function BudgetStatus({ budgets, expenses }) {
 }
 
 // --- NEW SAVINGS GOALS WIDGET ---
-function SavingsGoalsWidget({ goals }) {
+function SavingsGoalsWidget({ goals, onNavigate }) {
     if (goals.length === 0) {
         return (
             <ChartCard title="Savings Goals">
-                <EmptyState illustration={<EmptyPiggyBankIllustration/>} message="No goals set yet."/>
+                 <div className="text-center py-10">
+                    <p className="text-slate-400 text-sm mb-4">No savings goals set yet. Create one to get started!</p>
+                    <button onClick={() => onNavigate('goals')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Create Goal</button>
+                </div>
             </ChartCard>
         );
     }
@@ -1566,46 +1626,56 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 // --- Helper Functions for AI ---
-async function callGeminiApi(prompt) {
-    // This is a placeholder. In a real app, you would use the Gemini API SDK
-    // or a fetch call to the Gemini API endpoint.
-    console.log("Calling Gemini with prompt:", prompt);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
+async function callGeminiApi(prompt, isTextOnly = false, schema = null) {
+    if (!GEMINI_API_KEY) {
+        throw new Error("Gemini API key is not configured.");
+    }
     
-    if (prompt.includes("suggest the best category")) {
-        const descriptions = {
-            "Tesco": "Food", "Asda": "Food", "Sainsbury": "Food",
-            "Netflix": "Subscriptions", "Spotify": "Subscriptions",
-            "Shell": "Transport", "BP": "Transport",
-            "Pizza": "Entertainment", "Cinema": "Entertainment"
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+    const payload = {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+    };
+
+    if (!isTextOnly && schema) {
+        payload.generationConfig = {
+            responseMimeType: "application/json",
+            responseSchema: schema,
         };
-        for (const key in descriptions) {
-            if (prompt.toLowerCase().includes(key.toLowerCase())) {
-                return descriptions[key];
+    }
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json();
+            console.error("Gemini API Error:", errorBody);
+            throw new Error(`API request failed with status ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        if (result.candidates && result.candidates.length > 0) {
+            const content = result.candidates[0].content;
+            if (content && content.parts && content.parts.length > 0) {
+                const part = content.parts[0];
+                if (isTextOnly) {
+                    return part.text;
+                } else {
+                    // For JSON, Gemini returns the JSON object directly in the part
+                    return part.text ? JSON.parse(part.text) : null;
+                }
             }
         }
-        return "Other";
-    }
-    
-    if (prompt.includes("Suggest a monthly budget")) {
-        return JSON.stringify({
-            "Food": 400,
-            "Transport": 150,
-            "Entertainment": 100,
-            "Shopping": 150,
-            "Health": 50,
-            "Other": 100
-        });
-    }
+        
+        throw new Error("Invalid response structure from Gemini API.");
 
-    return "This is a simulated response from the AI Financial Coach. In a real application, this would contain personalized advice based on your financial data.";
-}
-
-function extractJson(text) {
-    const match = text.match(/```json\n([\s\S]*?)\n```|({[\s\S]*})|(\[[\s\S]*\])/);
-    if (match) {
-        return match[1] || match[2] || match[3];
+    } catch (error) {
+        console.error("Error calling Gemini API:", error);
+        throw error;
     }
-    return text; // Return original text if no JSON block is found
 }
