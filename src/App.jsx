@@ -3,7 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot, query, setDoc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Legend as RechartsLegend } from 'recharts';
-import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, DollarSign, List, LayoutDashboard, Settings, Search, Download, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck, LogOut, ChevronLeft, ChevronRight, Award, RefreshCw } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, DollarSign, List, LayoutDashboard, Settings, Search, Download, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck, LogOut, ChevronLeft, ChevronRight, Award, RefreshCw, TrendingUp } from 'lucide-react';
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
