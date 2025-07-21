@@ -11,25 +11,25 @@ import { motion, AnimatePresence } from 'framer-motion';
 // For the app to work, you MUST replace them with your actual
 // Firebase project configuration in a .env file.
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_API_KEY,
-    authDomain: import.meta.env.VITE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_APP_ID
+    apiKey: "AIzaSyCG6J5SSaz3dapBV-fBibpI2JJkK9tJGb4",
+    authDomain: "my-budget-tracker-527a3.firebaseapp.com",
+    projectId: "my-budget-tracker-527a3",
+    storageBucket: "my-budget-tracker-527a3.firebasestorage.app",
+    messagingSenderId: "263272586943",
+    appId: "1:263272586943:web:6479ebcd397db929d9700a"
   };
   
-  const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+  const GEMINI_API_KEY = "AIzaSyBSxiCYsPcofbzo2lTUBA-m7IZLRABbkOs";
 
 // --- Helper & Error Components (Defined First) ---
 
-function FirebaseConfigError() {
-    return (<div className="bg-gradient-to-br from-slate-900 to-black text-white min-h-screen flex items-center justify-center p-8"><div className="bg-red-900/50 backdrop-blur-md border border-red-500/50 p-8 rounded-2xl max-w-2xl text-center"><h1 className="text-3xl font-bold text-white mb-4">Configuration Error</h1><p className="text-lg text-slate-200 mb-6">It looks like you haven't configured your Firebase credentials yet.</p><p className="text-slate-300 mb-4">To fix this, open the <code className="bg-slate-700 p-1 rounded">.env</code> file in your project's root directory and add your Firebase credentials.</p></div></div>);
-}
+// function FirebaseConfigError() {
+//     return (<div className="bg-gradient-to-br from-slate-900 to-black text-white min-h-screen flex items-center justify-center p-8"><div className="bg-red-900/50 backdrop-blur-md border border-red-500/50 p-8 rounded-2xl max-w-2xl text-center"><h1 className="text-3xl font-bold text-white mb-4">Configuration Error</h1><p className="text-lg text-slate-200 mb-6">It looks like you haven't configured your Firebase credentials yet.</p><p className="text-slate-300 mb-4">To fix this, open the <code className="bg-slate-700 p-1 rounded">.env</code> file in your project's root directory and add your Firebase credentials.</p></div></div>);
+// }
 
-function GeminiConfigError() {
-    return (<div className="bg-gradient-to-br from-slate-900 to-black text-white min-h-screen flex items-center justify-center p-8"><div className="bg-red-900/50 backdrop-blur-md border border-red-500/50 p-8 rounded-2xl max-w-2xl text-center"><h1 className="text-3xl font-bold text-white mb-4">AI Features Disabled</h1><p className="text-lg text-slate-200 mb-6">The Gemini API key is missing. AI-powered features like the financial coach and smart suggestions will not work.</p><p className="text-slate-300 mb-4">To fix this, get a free API key from Google AI Studio and add it to a <code className="bg-slate-700 p-1 rounded">.env</code> file in your project's root directory.</p><div className="bg-slate-800 p-4 rounded-lg text-left text-sm text-slate-400"><pre className="whitespace-pre-wrap">{`// Create a file named .env in the root of your project and add:\nVITE_GEMINI_API_KEY="YOUR_API_KEY_HERE"`}</pre></div></div></div>);
-}
+// function GeminiConfigError() {
+//     return (<div className="bg-gradient-to-br from-slate-900 to-black text-white min-h-screen flex items-center justify-center p-8"><div className="bg-red-900/50 backdrop-blur-md border border-red-500/50 p-8 rounded-2xl max-w-2xl text-center"><h1 className="text-3xl font-bold text-white mb-4">AI Features Disabled</h1><p className="text-lg text-slate-200 mb-6">The Gemini API key is missing. AI-powered features like the financial coach and smart suggestions will not work.</p><p className="text-slate-300 mb-4">To fix this, get a free API key from Google AI Studio and add it to a <code className="bg-slate-700 p-1 rounded">.env</code> file in your project's root directory.</p><div className="bg-slate-800 p-4 rounded-lg text-left text-sm text-slate-400"><pre className="whitespace-pre-wrap">{`// Create a file named .env in the root of your project and add:\nVITE_GEMINI_API_KEY="YOUR_API_KEY_HERE"`}</pre></div></div></div>);
+// }
 
 // --- Login Page Component ---
 function LoginPage({ auth }) {
@@ -458,7 +458,7 @@ function BudgetApp({ user, auth, db, theme, setTheme }) {
                                 {activeView === 'dashboard' && <DashboardView transactions={transactions} budgets={budgets} savingsGoals={savingsGoals} onNavigate={setActiveView} />}
                                 {activeView === 'transactions' && <TransactionListView transactions={transactions.filter(t => t.description.toLowerCase().includes(searchQuery.toLowerCase()))} handleDeleteTransaction={transactionHandlers.delete} />}
                                 {activeView === 'scenarios' && <ScenariosView transactions={transactions} />}
-                                {activeView === 'calendar' && <CalendarView transactions={transactions} />}
+                                {activeView === 'calendar' && <CalendarView transactions={transactions} subscriptions={subscriptions} />}
                                 {activeView === 'subscriptions' && <SubscriptionsView subscriptions={subscriptions} onAdd={() => setIsAddSubDialogOpen(true)} onDelete={subscriptionHandlers.delete} />}
                                 {activeView === 'net worth' && <NetWorthView assets={assets} liabilities={liabilities} handlers={{ asset: assetHandlers, liability: liabilityHandlers }} />}
                                 {activeView === 'goals' && <SavingsGoalsView goals={savingsGoals} handlers={savingsGoalHandlers} />}
@@ -1530,45 +1530,96 @@ function DebtPlannerView() {
         </div>
     );
 }
-
-function CalendarView({ transactions }) {
+function CalendarView({ transactions, subscriptions }) {
     const [currentDate, setCurrentDate] = useState(new Date());
-
-    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
 
     const eventsByDate = useMemo(() => {
         const events = {};
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+
+        // 1. Process historical transactions
         transactions.forEach(t => {
             const date = new Date(t.date).toDateString();
             if (!events[date]) events[date] = [];
             events[date].push({ ...t, eventType: 'transaction' });
         });
+
+        // 2. Process recurring subscriptions for the current month's view
+        subscriptions.forEach(sub => {
+            // Simple simulation: Use the name length to pick a billing day. 
+            // A real app would store the day of the month for each bill.
+            const billingDay = (sub.name.length % 28) + 1;
+            const date = new Date(year, month, billingDay);
+
+            // Ensure the simulated day exists for the current month (e.g., avoids Feb 30th)
+            if (date.getMonth() === month) {
+                const dateString = date.toDateString();
+                if (!events[dateString]) events[dateString] = [];
+                events[dateString].push({
+                    id: `sub-${sub.id}`,
+                    eventType: 'subscription',
+                    description: sub.name,
+                    amount: sub.amount,
+                    type: 'expense'
+                });
+            }
+        });
+
         return events;
-    }, [transactions]);
+    }, [transactions, subscriptions, currentDate]);
 
     const changeMonth = (offset) => {
         setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
     };
 
-    const calendarDays = [];
+    const goToToday = () => {
+        setCurrentDate(new Date());
+    };
+
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
+    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+    const todayString = new Date().toDateString();
+
+    const calendarGrid = [];
     for (let i = 0; i < firstDayOfMonth; i++) {
-        calendarDays.push(<div key={`empty-${i}`} className="border-t border-r border-gray-200 dark:border-slate-700"></div>);
+        calendarGrid.push(<div key={`empty-${i}`} className="border-t border-r border-gray-200 dark:border-slate-700"></div>);
     }
+
     for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
         const dateString = date.toDateString();
         const dayEvents = eventsByDate[dateString] || [];
+        const isToday = dateString === todayString;
 
-        calendarDays.push(
-            <div key={day} className="border-t border-r border-gray-200 dark:border-slate-700 p-2 h-32 flex flex-col bg-white/10 dark:bg-slate-800/30">
-                <span className="font-bold text-gray-800 dark:text-white">{day}</span>
-                <div className="flex-grow overflow-y-auto text-xs space-y-1 mt-1 scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-slate-600 scrollbar-track-gray-200 dark:scrollbar-track-slate-800">
-                    {dayEvents.map(event => (
-                        <div key={event.id} className={`p-1 rounded text-white ${event.type === 'income' ? 'bg-green-500/80' : 'bg-red-500/80'}`}>
-                            {event.description} - £{event.amount}
-                        </div>
-                    ))}
+        const dailyTotals = dayEvents.reduce((acc, event) => {
+            if (event.eventType === 'transaction') {
+                const amount = parseFloat(event.amount) || 0;
+                if (event.type === 'income') acc.income += amount;
+                else acc.expense += amount;
+            }
+            return acc;
+        }, { income: 0, expense: 0 });
+
+        calendarGrid.push(
+            <div key={day} className={`relative border-t border-r border-gray-200 dark:border-slate-700 p-2 flex flex-col group aspect-video transition-colors duration-200 ${isToday ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-100 dark:hover:bg-slate-800'}`}>
+                <span className={`font-semibold text-sm ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-slate-300'}`}>{day}</span>
+                
+                <div className="flex-grow overflow-hidden mt-1">
+                    {/* Event list appears on hover */}
+                    <div className="transition-opacity opacity-0 group-hover:opacity-100 space-y-1">
+                        {dayEvents.slice(0, 3).map(event => (
+                            <div key={event.id} className="flex items-center gap-1.5">
+                               <span className={`w-1.5 h-1.5 rounded-full ${event.eventType === 'subscription' ? 'bg-sky-500' : (event.type === 'income' ? 'bg-green-500' : 'bg-red-500')}`}></span>
+                               <p className="truncate text-gray-700 dark:text-slate-300 text-xs">{event.description}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="text-right text-xs mt-auto font-medium">
+                    {dailyTotals.income > 0 && <p className="text-green-600 dark:text-green-500">+£{dailyTotals.income.toLocaleString('en-GB', {maximumFractionDigits: 0})}</p>}
+                    {dailyTotals.expense > 0 && <p className="text-red-600 dark:text-red-500">-£{dailyTotals.expense.toLocaleString('en-GB', {maximumFractionDigits: 0})}</p>}
                 </div>
             </div>
         );
@@ -1577,50 +1628,22 @@ function CalendarView({ transactions }) {
     return (
         <div className="bg-white dark:bg-slate-800/50 backdrop-blur-md border border-gray-200 dark:border-white/10 p-6 rounded-xl">
             <div className="flex justify-between items-center mb-4">
-                <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-slate-700"><ChevronLeft /></button>
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">{currentDate.toLocaleString('en-GB', { month: 'long', year: 'numeric' })}</h2>
-                <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-slate-700"><ChevronRight /></button>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-slate-700"><ChevronLeft /></button>
+                    <button onClick={goToToday} className="text-sm font-semibold px-3 py-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-300 dark:border-slate-600">Today</button>
+                    <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-slate-700"><ChevronRight /></button>
+                </div>
             </div>
             <div className="grid grid-cols-7 border-l border-b border-gray-200 dark:border-slate-700">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day} className="text-center font-semibold p-2 bg-gray-100 dark:bg-slate-900/50 text-gray-700 dark:text-gray-300">{day}</div>
+                    <div key={day} className="text-center font-semibold p-2 bg-gray-100 dark:bg-slate-900/50 text-gray-700 dark:text-gray-300 text-sm">{day}</div>
                 ))}
-                {calendarDays}
+                {calendarGrid}
             </div>
         </div>
     );
 }
-
-function AchievementsView({ achievements }) {
-    const allBadges = [
-        { id: 'dailyLogin', name: 'Daily Login', description: 'Log in for the first time today.', icon: <LogOut /> },
-        { id: 'onARoll', name: 'On a Roll', description: 'Log in 3 days in a row.', icon: <Repeat /> },
-        { id: 'noSpendDay', name: 'No-Spend Day', description: 'Go a full day without any expenses.', icon: <ShieldCheck /> },
-        { id: 'budgetBoss', name: 'Budget Boss', description: 'Stay under budget for a whole month.', icon: <Target /> },
-        { id: 'goalGetter', name: 'Goal Getter', description: 'Successfully complete a savings goal.', icon: <Award /> },
-    ];
-
-    return (
-        <div className="bg-white dark:bg-slate-800/50 backdrop-blur-md border border-gray-200 dark:border-white/10 p-6 rounded-xl">
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Your Achievements</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {allBadges.map(badge => {
-                    const isEarned = achievements[badge.id];
-                    return (
-                        <div key={badge.id} className={`p-6 rounded-xl text-center transition-all duration-300 ${isEarned ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400'}`}>
-                            <div className={`mx-auto w-16 h-16 mb-4 rounded-full flex items-center justify-center ${isEarned ? 'bg-white/20' : 'bg-gray-200 dark:bg-slate-600'}`}>
-                                {React.cloneElement(badge.icon, { size: 32, className: isEarned ? 'text-white' : 'text-gray-400 dark:text-slate-500' })}
-                            </div>
-                            <h3 className={`font-bold ${isEarned ? 'text-white' : 'text-gray-800 dark:text-slate-300'}`}>{badge.name}</h3>
-                            <p className="text-xs mt-1">{badge.description}</p>
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
-}
-
 function TransactionList({ transactions, handleDeleteTransaction }) {
     if (transactions.length === 0) return <EmptyState illustration={<EmptyWalletIllustration />} message="No transactions match your criteria." />;
     return (<div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="border-b border-gray-200 dark:border-slate-700"><th className="p-3 text-sm font-semibold text-gray-500 dark:text-slate-400">Date</th><th className="p-3 text-sm font-semibold text-gray-500 dark:text-slate-400">Description</th><th className="p-3 text-sm font-semibold text-gray-500 dark:text-slate-400">Category</th><th className="p-3 text-sm font-semibold text-gray-500 dark:text-slate-400 text-right">Amount</th><th className="p-3 text-sm font-semibold text-gray-500 dark:text-slate-400 text-center">Action</th></tr></thead><tbody>{transactions.map(t => (<tr key={t.id} className="border-b border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50"><td className="p-3 text-gray-700 dark:text-slate-300">{new Date(t.date).toLocaleDateString('en-GB')}</td><td className="p-3 text-gray-700 dark:text-slate-300">{t.description}</td><td className="p-3 text-gray-700 dark:text-slate-300"><span className="bg-gray-200 dark:bg-slate-700 px-2 py-1 text-xs rounded-full">{t.category}</span></td><td className={`p-3 text-right font-medium ${t.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{t.type === 'income' ? '+' : '-'} £{parseFloat(t.amount).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td className="p-3 text-center"><button onClick={() => handleDeleteTransaction(t.id)} className="text-gray-500 dark:text-slate-500 hover:text-red-500"><Trash2 size={16} /></button></td></tr>))}</tbody></table></div>);
