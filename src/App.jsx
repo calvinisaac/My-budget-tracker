@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot, query, setDoc, getDoc, writeBatch, updateDoc, orderBy } from 'firebase/firestore';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Sector } from 'recharts';import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, PoundSterling, List, LayoutDashboard, Settings, Search, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck, LogOut, ChevronLeft, ChevronRight, Award, RefreshCw, TrendingUp, Sun, Moon, Lightbulb } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Sector } from 'recharts';import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Wallet, PoundSterling, List, LayoutDashboard, Settings, Search, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck, LogOut, ChevronLeft, ChevronRight, Award, RefreshCw, TrendingUp, Sun, Moon, Lightbulb } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 
@@ -11,16 +11,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 // For the app to work, you MUST replace them with your actual
 // Firebase project configuration in a .env file.
 const firebaseConfig = {
-    apiKey: "AIzaSyCG6J5SSaz3dapBV-fBibpI2JJkK9tJGb4",
-    authDomain: "my-budget-tracker-527a3.firebaseapp.com",
-    projectId: "my-budget-tracker-527a3",
-    storageBucket: "my-budget-tracker-527a3.firebasestorage.app",
-    messagingSenderId: "263272586943",
-    appId: "1:263272586943:web:6479ebcd397db929d9700a"
+    apiKey: import.meta.env.VITE_API_KEY,
+    authDomain: import.meta.env.VITE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_APP_ID
   };
-
-  const GEMINI_API_KEY = "AIzaSyBSxiCYsPcofbzo2lTUBA-m7IZLRABbkOs";
-
+  
+  const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 // --- Helper & Error Components (Defined First) ---
 
@@ -989,6 +988,7 @@ function FinancialCoachView({ transactions, budgets, subscriptions }) {
 }
 
 function ScenariosView({ transactions }) {
+    // Calculate the current balance from all existing transactions
     const currentBalance = useMemo(() => {
         return transactions.reduce((acc, t) => {
             const amount = parseFloat(t.amount) || 0;
@@ -996,23 +996,28 @@ function ScenariosView({ transactions }) {
         }, 0);
     }, [transactions]);
 
+    // State for the list of planned income/expense items
     const [plannedItems, setPlannedItems] = useState([]);
-    const [newItem, setNewItem] = useState({ description: '', amount: '', type: 'expense' });
+    // State for the input form, now including a date
+    const [newItem, setNewItem] = useState({ 
+        description: '', 
+        amount: '', 
+        type: 'expense', 
+        date: new Date().toISOString().split('T')[0] 
+    });
 
-    const { plannedIncome, plannedExpense } = useMemo(() => {
+    // Calculate totals for planned items
+    const projectedChange = useMemo(() => {
         return plannedItems.reduce((acc, item) => {
             const amount = parseFloat(item.amount) || 0;
-            if (item.type === 'income') {
-                acc.plannedIncome += amount;
-            } else {
-                acc.plannedExpense += amount;
-            }
-            return acc;
-        }, { plannedIncome: 0, plannedExpense: 0 });
+            return item.type === 'income' ? acc + amount : acc - amount;
+        }, 0);
     }, [plannedItems]);
 
-    const projectedBalance = currentBalance + plannedIncome - plannedExpense;
+    // Calculate the final projected balance
+    const projectedBalance = currentBalance + projectedChange;
 
+    // Handler to add a new item to the list
     const handleAddItem = (e) => {
         e.preventDefault();
         if (!newItem.description || !newItem.amount || parseFloat(newItem.amount) <= 0) {
@@ -1020,13 +1025,16 @@ function ScenariosView({ transactions }) {
             return;
         }
         setPlannedItems([...plannedItems, { ...newItem, id: Date.now() }]);
-        setNewItem({ description: '', amount: '', type: 'expense' }); // Reset form
+        // Reset form after adding
+        setNewItem({ description: '', amount: '', type: 'expense', date: new Date().toISOString().split('T')[0] }); 
     };
 
+    // Handler to remove an item from the list
     const handleRemoveItem = (id) => {
         setPlannedItems(plannedItems.filter(item => item.id !== id));
     };
-
+    
+    // Handler for input changes
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setNewItem(prev => ({ ...prev, [name]: value }));
@@ -1034,54 +1042,66 @@ function ScenariosView({ transactions }) {
 
     return (
         <div className="space-y-8">
+            {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <SummaryCard title="Current Balance" amount={currentBalance} icon={PoundSterling} color="text-sky-500 dark:text-sky-400" bgColor="bg-sky-100 dark:bg-sky-500/10" />
-                <SummaryCard title="Projected Change" amount={plannedIncome - plannedExpense} icon={TrendingUp} color={(plannedIncome - plannedExpense) >= 0 ? "text-green-500 dark:text-green-400" : "text-red-500 dark:text-red-400"} bgColor={(plannedIncome - plannedExpense) >= 0 ? "bg-green-100 dark:bg-green-500/10" : "bg-red-100 dark:bg-red-500/10"} />
-                <SummaryCard title="Projected Balance" amount={projectedBalance} icon={ShieldCheck} color={projectedBalance >= 0 ? "text-green-500 dark:text-green-400" : "text-red-500 dark:text-red-400"} bgColor={projectedBalance >= 0 ? "bg-green-100 dark:bg-green-500/10" : "bg-red-100 dark:bg-red-500/10"} />
+                <SummaryCard title="Current Balance" amount={currentBalance} icon={Wallet} color="text-sky-500 dark:text-sky-400" bgColor="bg-sky-100 dark:bg-sky-500/10" />
+                <SummaryCard title="Projected Change" amount={projectedChange} icon={TrendingUp} color={projectedChange >= 0 ? "text-green-500 dark:text-green-400" : "text-red-500 dark:text-red-400"} bgColor={projectedChange >= 0 ? "bg-green-100 dark:bg-green-500/10" : "bg-red-100 dark:bg-red-500/10"} />
+                <SummaryCard title="Projected Final Balance" amount={projectedBalance} icon={ShieldCheck} color={projectedBalance >= 0 ? "text-green-500 dark:text-green-400" : "text-red-500 dark:text-red-400"} bgColor={projectedBalance >= 0 ? "bg-green-100 dark:bg-green-500/10" : "bg-red-100 dark:bg-red-500/10"} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Input Form */}
                 <div className="bg-white dark:bg-slate-800/50 backdrop-blur-md border border-gray-200 dark:border-white/10 p-6 rounded-xl shadow-lg">
-                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Add Planned Transaction</h2>
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Add a "What-If" Transaction</h2>
                     <form onSubmit={handleAddItem} className="space-y-4">
                         <div>
                             <label className="text-gray-500 dark:text-slate-400 text-sm font-bold mb-2 block">Type</label>
                             <div className="flex items-center bg-gray-200 dark:bg-slate-700 rounded-lg p-1">
-                                <button type="button" onClick={() => setNewItem({ ...newItem, type: 'expense' })} className={`flex-1 py-2 text-sm font-medium rounded-md ${newItem.type === 'expense' ? 'bg-red-500 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Expense</button>
-                                <button type="button" onClick={() => setNewItem({ ...newItem, type: 'income' })} className={`flex-1 py-2 text-sm font-medium rounded-md ${newItem.type === 'income' ? 'bg-green-500 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Income</button>
+                                <button type="button" onClick={() => setNewItem({...newItem, type: 'expense'})} className={`flex-1 py-2 text-sm font-medium rounded-md ${newItem.type === 'expense' ? 'bg-red-500 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Expense</button>
+                                <button type="button" onClick={() => setNewItem({...newItem, type: 'income'})} className={`flex-1 py-2 text-sm font-medium rounded-md ${newItem.type === 'income' ? 'bg-green-500 text-white' : 'text-slate-600 dark:text-slate-300'}`}>Income</button>
                             </div>
                         </div>
                         <div>
                             <label htmlFor="description" className="text-gray-500 dark:text-slate-400 text-sm font-bold mb-2 block">Description</label>
-                            <input id="description" name="description" type="text" value={newItem.description} onChange={handleInputChange} placeholder="e.g., Upcoming freelance payment" className="w-full bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg py-2 px-3 text-gray-900 dark:text-white" required />
+                            <input id="description" name="description" type="text" value={newItem.description} onChange={handleInputChange} placeholder="e.g., New Salary" className="w-full bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg py-2 px-3 text-gray-900 dark:text-white" required />
                         </div>
-                        <div>
-                            <label htmlFor="amount" className="text-gray-500 dark:text-slate-400 text-sm font-bold mb-2 block">Amount (£)</label>
-                            <input id="amount" name="amount" type="number" value={newItem.amount} onChange={handleInputChange} placeholder="0.00" className="w-full bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg py-2 px-3 text-gray-900 dark:text-white" required />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="amount" className="text-gray-500 dark:text-slate-400 text-sm font-bold mb-2 block">Amount (£)</label>
+                                <input id="amount" name="amount" type="number" value={newItem.amount} onChange={handleInputChange} placeholder="0.00" className="w-full bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg py-2 px-3 text-gray-900 dark:text-white" required />
+                            </div>
+                             <div>
+                                <label htmlFor="date" className="text-gray-500 dark:text-slate-400 text-sm font-bold mb-2 block">Date</label>
+                                <input id="date" name="date" type="date" value={newItem.date} onChange={handleInputChange} className="w-full bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg py-2 px-3 text-gray-900 dark:text-white" required />
+                            </div>
                         </div>
-                        <div className="text-right">
-                            <button type="submit" className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                                <Plus size={16} /> Add to Scenario
+                        <div className="text-right pt-2">
+                             <button type="submit" className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                                <Plus size={16} /> Add to Forecast
                             </button>
                         </div>
                     </form>
                 </div>
-
+                
+                {/* List of Planned Items */}
                 <div className="bg-white dark:bg-slate-800/50 backdrop-blur-md border border-gray-200 dark:border-white/10 p-6 rounded-xl shadow-lg">
-                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Scenario Items</h2>
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Forecast Items</h2>
                     <div className="space-y-3 max-h-96 overflow-y-auto">
                         {plannedItems.length > 0 ? plannedItems.map(item => (
                             <div key={item.id} className="flex justify-between items-center bg-gray-100 dark:bg-slate-700/50 p-3 rounded-lg">
                                 <div>
                                     <p className="text-gray-900 dark:text-white">{item.description}</p>
+                                    <p className="text-xs text-gray-500 dark:text-slate-400">{new Date(item.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                                </div>
+                                <div className="flex items-center gap-4">
                                     <p className={`text-sm font-bold ${item.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                         {item.type === 'income' ? '+' : '-'} £{parseFloat(item.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
                                     </p>
+                                    <button onClick={() => handleRemoveItem(item.id)} className="text-gray-500 dark:text-slate-500 hover:text-red-500"><Trash2 size={16} /></button>
                                 </div>
-                                <button onClick={() => handleRemoveItem(item.id)} className="text-gray-500 dark:text-slate-500 hover:text-red-500"><Trash2 size={16} /></button>
                             </div>
                         )) : (
-                            <EmptyState illustration={<EmptyWalletIllustration />} message="No planned transactions added yet." />
+                           <EmptyState illustration={<EmptyWalletIllustration/>} message="Add an item to start your forecast."/>
                         )}
                     </div>
                 </div>
