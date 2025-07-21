@@ -263,6 +263,7 @@ function BudgetApp({ user, auth }) {
                             <NavButton icon={Award} label="Achievements" activeView={activeView} onClick={() => setActiveView('achievements')} />
                             <NavButton icon={Bot} label="Coach" activeView={activeView} onClick={() => setActiveView('coach')} />
                             <NavButton icon={Settings} label="Settings" activeView={activeView} onClick={() => setActiveView('settings')} />
+                            <NavButton icon={TrendingUp} label="Scenarios" activeView={activeView} onClick={() => setActiveView('scenarios')} />
                         </div>
                         <button onClick={handleLogout} className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg"><LogOut size={16} /><span>Logout</span></button>
                     </div>
@@ -283,6 +284,7 @@ function BudgetApp({ user, auth }) {
                         {activeView === 'achievements' && <AchievementsView achievements={achievements} />}
                         {activeView === 'coach' && <FinancialCoachView transactions={transactions} budgets={budgets} subscriptions={subscriptions} />}
                         {activeView === 'settings' && <SettingsView initialBudgets={budgets} initialCategories={categories} onSave={handleSaveSettings} subscriptions={subscriptions} />}
+                        {activeView === 'scenarios' && <ScenariosView transactions={transactions} />}
                     </>
                 )}
             </div>
@@ -1224,5 +1226,120 @@ function SavingsGoalsWidget({ goals }) {
                 {goals.length === 0 && <EmptyState illustration={<EmptyPiggyBankIllustration/>} message="No goals set yet."/>}
             </div>
         </ChartCard>
+    );
+}
+
+// --- Add this new component to your file ---
+
+function ScenariosView({ transactions }) {
+    // Calculate the current balance from all existing transactions
+    const currentBalance = useMemo(() => {
+        return transactions.reduce((acc, t) => {
+            const amount = parseFloat(t.amount) || 0;
+            return t.type === 'income' ? acc + amount : acc - amount;
+        }, 0);
+    }, [transactions]);
+
+    // State for the list of planned income/expense items
+    const [plannedItems, setPlannedItems] = useState([]);
+    // State for the input form
+    const [newItem, setNewItem] = useState({ description: '', amount: '', type: 'expense' });
+
+    // Calculate totals for planned items
+    const { plannedIncome, plannedExpense } = useMemo(() => {
+        return plannedItems.reduce((acc, item) => {
+            const amount = parseFloat(item.amount) || 0;
+            if (item.type === 'income') {
+                acc.plannedIncome += amount;
+            } else {
+                acc.plannedExpense += amount;
+            }
+            return acc;
+        }, { plannedIncome: 0, plannedExpense: 0 });
+    }, [plannedItems]);
+
+    // Calculate the final projected balance
+    const projectedBalance = currentBalance + plannedIncome - plannedExpense;
+
+    // Handler to add a new item to the list
+    const handleAddItem = (e) => {
+        e.preventDefault();
+        if (!newItem.description || !newItem.amount || parseFloat(newItem.amount) <= 0) {
+            alert('Please enter a valid description and a positive amount.');
+            return;
+        }
+        setPlannedItems([...plannedItems, { ...newItem, id: Date.now() }]);
+        setNewItem({ description: '', amount: '', type: 'expense' }); // Reset form
+    };
+
+    // Handler to remove an item from the list
+    const handleRemoveItem = (id) => {
+        setPlannedItems(plannedItems.filter(item => item.id !== id));
+    };
+    
+    // Handler for input changes
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setNewItem(prev => ({ ...prev, [name]: value }));
+    };
+
+    return (
+        <div className="space-y-8">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <SummaryCard title="Current Balance" amount={currentBalance} icon={DollarSign} color="text-sky-400" />
+                <SummaryCard title="Projected Change" amount={plannedIncome - plannedExpense} icon={TrendingUp} color={(plannedIncome - plannedExpense) >= 0 ? "text-green-400" : "text-red-400"} />
+                <SummaryCard title="Projected Balance" amount={projectedBalance} icon={ShieldCheck} color={projectedBalance >= 0 ? "text-green-400" : "text-red-400"} />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Input Form */}
+                <div className="bg-slate-800/50 backdrop-blur-md border border-white/10 p-6 rounded-xl shadow-lg">
+                    <h2 className="text-xl font-semibold text-white mb-4">Add Planned Transaction</h2>
+                    <form onSubmit={handleAddItem} className="space-y-4">
+                        <div>
+                            <label className="text-slate-400 text-sm font-bold mb-2 block">Type</label>
+                            <div className="flex items-center bg-slate-700 rounded-lg p-1">
+                                <button type="button" onClick={() => setNewItem({...newItem, type: 'expense'})} className={`flex-1 py-2 text-sm font-medium rounded-md ${newItem.type === 'expense' ? 'bg-red-500 text-white' : 'text-slate-300'}`}>Expense</button>
+                                <button type="button" onClick={() => setNewItem({...newItem, type: 'income'})} className={`flex-1 py-2 text-sm font-medium rounded-md ${newItem.type === 'income' ? 'bg-green-500 text-white' : 'text-slate-300'}`}>Income</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label htmlFor="description" className="text-slate-400 text-sm font-bold mb-2 block">Description</label>
+                            <input id="description" name="description" type="text" value={newItem.description} onChange={handleInputChange} placeholder="e.g., Upcoming freelance payment" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required />
+                        </div>
+                        <div>
+                            <label htmlFor="amount" className="text-slate-400 text-sm font-bold mb-2 block">Amount (£)</label>
+                            <input id="amount" name="amount" type="number" value={newItem.amount} onChange={handleInputChange} placeholder="0.00" className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 px-3 text-white" required />
+                        </div>
+                        <div className="text-right">
+                             <button type="submit" className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                                <Plus size={16} /> Add to Scenario
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                {/* List of Planned Items */}
+                <div className="bg-slate-800/50 backdrop-blur-md border border-white/10 p-6 rounded-xl shadow-lg">
+                    <h2 className="text-xl font-semibold text-white mb-4">Scenario Items</h2>
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {plannedItems.length > 0 ? plannedItems.map(item => (
+                            <div key={item.id} className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
+                                <div>
+                                    <p className="text-white">{item.description}</p>
+                                    <p className={`text-sm font-bold ${item.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
+                                        {item.type === 'income' ? '+' : '-'} £{parseFloat(item.amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                                    </p>
+                                </div>
+                                <button onClick={() => handleRemoveItem(item.id)} className="text-slate-500 hover:text-red-500"><Trash2 size={16} /></button>
+                            </div>
+                        )) : (
+                           <EmptyState illustration={<EmptyWalletIllustration/>} message="No planned transactions added yet."/>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }
