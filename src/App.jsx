@@ -149,7 +149,7 @@ function BudgetApp({ user, auth, db, theme, setTheme }) {
     const [budgets, setBudgets] = useState({});
     const [categories, setCategories] = useState({
         expense: ['Bills', 'Food', 'Health', 'Transport', 'Subscriptions', 'Entertainment', 'Shopping', 'Other'],
-        income: ['Salary', 'Bonus', 'Freelance', 'Gift', 'Other']
+        income: ['Salary', 'Bonus', 'Freelance', 'Gift', 'Other', 'Rollover']
     });
     const [assets, setAssets] = useState([]);
     const [liabilities, setLiabilities] = useState([]);
@@ -455,7 +455,7 @@ function BudgetApp({ user, auth, db, theme, setTheme }) {
                                 exit={{ opacity: 0, y: -20 }}
                                 transition={{ duration: 0.3 }}
                             >
-                                {activeView === 'dashboard' && <DashboardView transactions={transactions} budgets={budgets} savingsGoals={savingsGoals} onNavigate={setActiveView} />}
+                                {activeView === 'dashboard' && <DashboardView transactions={transactions} budgets={budgets} savingsGoals={savingsGoals} onNavigate={setActiveView} onAddTransaction={transactionHandlers.add}/>}
                                 {activeView === 'transactions' && <TransactionListView transactions={transactions.filter(t => t.description.toLowerCase().includes(searchQuery.toLowerCase()))} handleDeleteTransaction={transactionHandlers.delete} />}
                                 {activeView === 'scenarios' && <ScenariosView transactions={transactions} />}
                                 {activeView === 'calendar' && <CalendarView transactions={transactions} subscriptions={subscriptions} />}
@@ -509,7 +509,96 @@ function SummaryCard({ title, amount, icon: Icon, color, bgColor }) {
     );
 }
 
-function DashboardView({ transactions, budgets, savingsGoals, onNavigate }) {
+// --- Place this new component definition with other helper components in your App.js ---
+
+function MonthlyRolloverCard({ transactions, onAddTransaction }) {
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    // 1. Calculate the previous month's balance
+    const lastMonthBalance = useMemo(() => {
+        const now = new Date();
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+        const lastMonthTx = transactions.filter(t => {
+            const tDate = new Date(t.date);
+            return tDate >= startOfLastMonth && tDate < startOfThisMonth;
+        });
+
+        return lastMonthTx.reduce((acc, t) => {
+            const amount = parseFloat(t.amount) || 0;
+            return t.type === 'income' ? acc + amount : acc - amount;
+        }, 0);
+    }, [transactions]);
+
+    // 2. Check if a rollover has already been added this month
+    const rolloverExists = useMemo(() => {
+        const now = new Date();
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        return transactions.some(t => 
+            new Date(t.date) >= startOfThisMonth &&
+            t.description === 'Previous Month Balance' &&
+            t.category === 'Rollover'
+        );
+    }, [transactions]);
+
+    // 3. Handler to create the new income transaction
+    const handleCarryOver = async () => {
+        if (lastMonthBalance <= 0 || isProcessing || rolloverExists) return;
+
+        setIsProcessing(true);
+        try {
+            await onAddTransaction({
+                type: 'income',
+                amount: lastMonthBalance,
+                category: 'Rollover', // Using a specific category is good practice
+                description: 'Previous Month Balance',
+                date: new Date().toISOString().split('T')[0], // Add it on today's date
+            });
+        } catch (error) {
+            console.error("Failed to carry over balance:", error);
+            alert("Could not carry over balance. Please try again.");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    if (lastMonthBalance <= 0 && !rolloverExists) {
+        return (
+             <ChartCard title="Monthly Rollover">
+                <div className="text-center py-5">
+                    <p className="text-gray-500 dark:text-slate-400 text-sm">No positive balance from last month to carry over.</p>
+                </div>
+            </ChartCard>
+        );
+    }
+    
+    return (
+        <ChartCard title="Monthly Rollover">
+            <div className="flex flex-col items-center justify-center text-center space-y-4 p-4">
+                <p className="text-gray-500 dark:text-slate-400">Last month's remaining balance:</p>
+                <p className="text-3xl font-bold text-green-500 dark:text-green-400">
+                    £{lastMonthBalance.toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                </p>
+                {rolloverExists ? (
+                    <p className="text-sm text-green-600 dark:text-green-500 font-semibold flex items-center gap-2">
+                        <ShieldCheck size={16} /> Balance already carried over for this month.
+                    </p>
+                ) : (
+                    <button
+                        onClick={handleCarryOver}
+                        disabled={isProcessing}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-all transform hover:scale-105 disabled:bg-slate-500 disabled:cursor-not-allowed"
+                    >
+                        {isProcessing ? 'Processing...' : 'Add to This Month\'s Income'}
+                    </button>
+                )}
+            </div>
+        </ChartCard>
+    );
+}
+
+function DashboardView({ transactions, budgets, savingsGoals, onNavigate, onAddTransaction }) {
     const thisMonthTx = useMemo(() => {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -625,6 +714,9 @@ function DashboardView({ transactions, budgets, savingsGoals, onNavigate }) {
 
             {/* Side column */}
             <div className="col-span-12 lg:col-span-4 space-y-6">
+                <motion.div variants={itemVariants}>
+                    <MonthlyRolloverCard transactions={transactions} onAddTransaction={onAddTransaction} />
+                </motion.div>
                 <motion.div variants={itemVariants}>
                     <TipOfTheDay />
                 </motion.div>
