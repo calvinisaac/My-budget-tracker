@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot, query, setDoc, getDoc, writeBatch, updateDoc, orderBy } from 'firebase/firestore';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Sector } from 'recharts';import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Wallet, PoundSterling, List, LayoutDashboard, Settings, Search, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck, LogOut, ChevronLeft, ChevronRight, Award, RefreshCw, TrendingUp, Sun, Moon, Lightbulb } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Sector, BarChart, Bar, ReferenceLine, Label } from 'recharts';import { Plus, ArrowUpRight, ArrowDownLeft, Trash2, Wallet, PoundSterling, List, LayoutDashboard, Settings, Search, Calendar, Repeat, Sparkles, Bot, Target, Banknote, ShieldCheck, LogOut, ChevronLeft, ChevronRight, Award, RefreshCw, TrendingUp, Sun, Moon, Lightbulb } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { renderToStaticMarkup } from 'react-dom/server';
 import jsPDF from 'jspdf';
@@ -359,7 +359,7 @@ function BudgetApp({ user, auth, db, theme, setTheme }) {
                     <nav className="flex flex-col space-y-2">
                         <SideNavButton icon={LayoutDashboard} label="Dashboard" activeView={activeView} onClick={() => setActiveView('dashboard')} />
                         <SideNavButton icon={List} label="Transactions" activeView={activeView} onClick={() => setActiveView('transactions')} />
-                        <SideNavButton icon={TrendingUp} label="Scenarios" activeView={activeView} onClick={() => setActiveView('scenarios')} />
+                        {/* <SideNavButton icon={TrendingUp} label="Scenarios" activeView={activeView} onClick={() => setActiveView('scenarios')} /> */}
                         <SideNavButton icon={Calendar} label="Calendar" activeView={activeView} onClick={() => setActiveView('calendar')} />
                         <SideNavButton icon={Repeat} label="Subscriptions" activeView={activeView} onClick={() => setActiveView('subscriptions')} />
                         <SideNavButton icon={Banknote} label="Net Worth" activeView={activeView} onClick={() => setActiveView('net worth')} />
@@ -436,7 +436,7 @@ function BudgetApp({ user, auth, db, theme, setTheme }) {
                         <select onChange={(e) => setActiveView(e.target.value)} value={activeView} className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg p-3 text-gray-900 dark:text-white">
                             <option value="dashboard">Dashboard</option>
                             <option value="transactions">Transactions</option>
-                            <option value="scenarios">Scenarios</option>
+                            {/* <option value="scenarios">Scenarios</option> */}
                             <option value="calendar">Calendar</option>
                             <option value="subscriptions">Subscriptions</option>
                             <option value="net worth">Net Worth</option>
@@ -459,8 +459,8 @@ function BudgetApp({ user, auth, db, theme, setTheme }) {
                                 exit={{ opacity: 0, y: -20 }}
                                 transition={{ duration: 0.3 }}
                             >
-                                {activeView === 'dashboard' && <DashboardView transactions={transactions} budgets={budgets} savingsGoals={savingsGoals} onNavigate={setActiveView} onAddTransaction={transactionHandlers.add}/>}
-                                {activeView === 'transactions' && <TransactionListView transactions={transactions.filter(t => t.description.toLowerCase().includes(searchQuery.toLowerCase()))} handleDeleteTransaction={transactionHandlers.delete} />}
+                                {activeView === 'dashboard' && <DashboardView transactions={transactions} budgets={budgets} savingsGoals={savingsGoals} onNavigate={setActiveView} onAddTransaction={transactionHandlers.add} assets={assets} liabilities={liabilities}/>}
+                                {activeView === 'transactions' && <TransactionListView transactions={transactions.filter(t => t.description.toLowerCase().includes(searchQuery.toLowerCase()))} handleDeleteTransaction={transactionHandlers.delete} categories={categories} />}
                                 {activeView === 'scenarios' && <ScenariosView transactions={transactions} />}
                                 {activeView === 'calendar' && <CalendarView transactions={transactions} subscriptions={subscriptions} />}
                                 {activeView === 'subscriptions' && <SubscriptionsView subscriptions={subscriptions} onAdd={() => setIsAddSubDialogOpen(true)} onDelete={subscriptionHandlers.delete} />}
@@ -602,30 +602,142 @@ function MonthlyRolloverCard({ transactions, onAddTransaction }) {
     );
 }
 
-export function ReportTemplate({ data }) {
+function ReportTemplate({ data }) {
+    const styles = {
+        report: {
+            fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif',
+            backgroundColor: '#f4f7fa',
+            padding: '40px 20px',
+        },
+        card: {
+            backgroundColor: '#f5f7fa',
+            width: '700px',
+            margin: '0 auto',
+            borderRadius: '10px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+            overflow: 'hidden',
+        },
+        header: {
+            backgroundColor: '#111827', // A dark charcoal
+            color: '#ffffff',
+            padding: '30px',
+            textAlign: 'center',
+        },
+        appName: { fontSize: '32px', fontWeight: 'bold', margin: '0' },
+        reportTitle: { fontSize: '18px', margin: '5px 0 0', color: '#d1d5db' },
+        content: { padding: '20px 35px 35px' },
+        sectionTitle: {
+            fontSize: '22px', fontWeight: '600', color: '#1f2937',
+            marginBottom: '20px', borderBottom: '2px solid #e5e7eb', paddingBottom: '10px',
+        },
+        kpiGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '30px' },
+        kpiBox: { textAlign: 'center', backgroundColor: '#f9fafb', padding: '20px', borderRadius: '8px' },
+        kpiLabel: { fontSize: '14px', color: '#6b7280', marginBottom: '8px' },
+        kpiValue: { fontSize: '26px', fontWeight: 'bold' },
+        income: { color: '#16a34a' },
+        expense: { color: '#dc2626' },
+        net: { color: '#2563eb' },
+        // Table styles
+        table: { width: '100%', borderCollapse: 'collapse', marginTop: '10px' },
+        th: {
+            textAlign: 'left', padding: '12px', color: '#4b5563',
+            borderBottom: '2px solid #e5e7eb', fontSize: '14px',
+        },
+        td: { padding: '12px', borderBottom: '1px solid #f3f4f6' },
+        // Bar chart styles
+        barContainer: {
+            width: '100%', backgroundColor: '#e5e7eb', borderRadius: '4px',
+            height: '20px', overflow: 'hidden',
+        },
+        bar: {
+            height: '100%', borderRadius: '4px', textAlign: 'right',
+            color: 'white', fontSize: '12px', lineHeight: '20px', paddingRight: '5px',
+        },
+        footer: {
+            marginTop: '40px', paddingTop: '20px', fontSize: '12px',
+            color: '#9ca3af', textAlign: 'center', borderTop: '1px solid #e5e7eb',
+        },
+    };
+
     return (
-        <div style={styles.container}>
-            <h1 style={styles.header}>Your Financial Report: {data.period}</h1>
-
-            <h2 style={styles.sectionTitle}>Monthly Summary</h2>
-            <div style={styles.item}><span>Income:</span> <strong>£{data.summary.income.toFixed(2)}</strong></div>
-            <div style={styles.item}><span>Expenses:</span> <strong>£{data.summary.expense.toFixed(2)}</strong></div>
-            <div style={styles.item}><span>Net Balance:</span> <strong>£{data.summary.balance.toFixed(2)}</strong></div>
-
-            <h2 style={styles.sectionTitle}>Top Spending Categories</h2>
-            {data.topExpenses.map(exp => (
-                <div style={styles.item} key={exp.name}>
-                    <span>{exp.name}</span>
-                    <strong>£{exp.value.toFixed(2)}</strong>
+        <div style={styles.report}>
+            <div style={styles.card}>
+                <div style={styles.header}>
+                    <h1 style={styles.appName}>Fin.ai</h1>
+                    <p style={styles.reportTitle}>Monthly Summary: {data.period}</p>
                 </div>
-            ))}
-            
-            <p style={styles.footer}>Report generated by Fin.ai on {new Date().toLocaleDateString()}</p>
+                <div style={styles.content}>
+                    {/* KPI Section */}
+                    <div style={styles.kpiGrid}>
+                        <div style={styles.kpiBox}>
+                            <div style={styles.kpiLabel}>Total Income</div>
+                            <div style={{ ...styles.kpiValue, ...styles.income }}>£{data.summary.income.toFixed(2)}</div>
+                        </div>
+                        <div style={styles.kpiBox}>
+                            <div style={styles.kpiLabel}>Total Expenses</div>
+                            <div style={{ ...styles.kpiValue, ...styles.expense }}>£{data.summary.expense.toFixed(2)}</div>
+                        </div>
+                        <div style={styles.kpiBox}>
+                            <div style={styles.kpiLabel}>Net Savings</div>
+                            <div style={{ ...styles.kpiValue, ...styles.net }}>£{data.summary.net.toFixed(2)}</div>
+                        </div>
+                    </div>
+
+                    {/* Budget Status Section */}
+                    <h2 style={styles.sectionTitle}>Budget Status</h2>
+                    <table style={styles.table}>
+                        <tbody>
+                            {data.budgetStatus.map((item, index) => {
+                                const percentage = item.budget > 0 ? (item.spent / item.budget) * 100 : 0;
+                                const barColor = percentage > 100 ? '#ef4444' : percentage > 80 ? '#f97316' : '#22c55e';
+                                return (
+                                    <tr key={index}>
+                                        <td style={{ ...styles.td, width: '30%', fontWeight: '500' }}>{item.name}</td>
+                                        <td style={styles.td}>
+                                            <div style={styles.barContainer}>
+                                                <div style={{...styles.bar, width: `${Math.min(percentage, 100)}%`, backgroundColor: barColor }}>
+                                                    {Math.round(percentage)}%
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td style={{...styles.td, width: '30%', textAlign: 'right', fontSize: '14px'}}>
+                                            £{item.spent.toFixed(2)} / <span style={{color: '#6b7280'}}>£{item.budget.toFixed(2)}</span>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+
+                    {/* Top Expenses Section */}
+                    <h2 style={{ ...styles.sectionTitle, marginTop: '40px' }}>Top 5 Expenses</h2>
+                    <table style={styles.table}>
+                        <thead>
+                            <tr>
+                                <th style={styles.th}>Category</th>
+                                <th style={{ ...styles.th, textAlign: 'right' }}>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.topExpenses.map((exp, index) => (
+                                <tr key={index}>
+                                    <td style={styles.td}>{exp.name}</td>
+                                    <td style={{ ...styles.td, textAlign: 'right', fontWeight: '500' }}>£{exp.value.toFixed(2)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+
+                    <div style={styles.footer}>
+                        This is an automated report generated by Fin.ai.
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }
 
-function DashboardView({ transactions, budgets, savingsGoals, onNavigate, onAddTransaction }) {
+function DashboardView({ transactions, budgets, savingsGoals, onNavigate, onAddTransaction, assets, liabilities }) {
     const thisMonthTx = useMemo(() => {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -691,36 +803,64 @@ function DashboardView({ transactions, budgets, savingsGoals, onNavigate, onAddT
     const [reportData, setReportData] = useState(null);
     const reportRef = useRef();
 
-    const handleGenerateReport = () => {
-        const data = {
-            period: "This Month",
-            summary: {
-                income: summary.income,
-                expense: summary.expense,
-                balance: summary.income - summary.expense,
-            },
-            topExpenses: Object.entries(thisMonthTx.filter(t => t.type === 'expense').reduce((acc, t) => {
-                const category = t.category || 'Uncategorized';
-                acc[category] = (acc[category] || 0) + t.amount;
-                return acc;
-            }, {})).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5),
-        };
-        // Set the data, which will trigger the useEffect hook below
-        setReportData(data);
+const handleGenerateReport = () => {
+    console.log("1. Button clicked. Preparing monthly summary data...");
+
+    // Group this month's expenses by category
+    const expensesByCategory = thisMonthTx
+        .filter(t => t.type === 'expense')
+        .reduce((acc, t) => {
+            const category = t.category || 'Uncategorized';
+            acc[category] = (acc[category] || 0) + t.amount;
+            return acc;
+        }, {});
+
+    // Create budget tracking data
+    const budgetStatus = Object.keys(budgets).map(cat => ({
+        name: cat,
+        budget: budgets[cat],
+        spent: expensesByCategory[cat] || 0,
+    })).filter(b => b.budget > 0);
+
+    // Create the final data object for the report
+    const reportData = {
+        period: new Date().toLocaleString('en-GB', { month: 'long', year: 'numeric' }),
+        summary: {
+            income: summary.income,
+            expense: summary.expense,
+            net: summary.income - summary.expense,
+        },
+        topExpenses: Object.entries(expensesByCategory)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 5),
+        budgetStatus: budgetStatus,
     };
+
+    console.log("2. Monthly summary data is ready:", reportData);
+    setReportData(reportData); // This triggers the useEffect for PDF generation
+};
     useEffect(() => {
-        // Only run if there's reportData and the ref is attached to the element
+        // Now that the ref's container is always rendered, this should be more reliable.
         if (reportData && reportRef.current) {
-            html2canvas(reportRef.current)
+            console.log("3. useEffect triggered. Starting PDF generation...");
+            
+            // We capture the ref's container div directly.
+            html2canvas(reportRef.current, { useCORS: true })
                 .then((canvas) => {
+                    console.log("4. html2canvas successful. Generating PDF...");
                     const imgData = canvas.toDataURL('image/png');
                     const pdf = new jsPDF('p', 'mm', 'a4');
                     const pdfWidth = pdf.internal.pageSize.getWidth();
                     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
                     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
                     pdf.save(`financial-report.pdf`);
-
-                    // Clean up by setting reportData back to null
+                    console.log("5. PDF saved successfully!");
+                    setReportData(null); 
+                })
+                .catch((error) => {
+                    console.error("ERROR: html2canvas failed.", error);
+                    alert("Sorry, there was an error creating the report.");
                     setReportData(null);
                 });
         }
@@ -812,7 +952,7 @@ function DashboardView({ transactions, budgets, savingsGoals, onNavigate, onAddT
                     <SavingsGoalsWidget goals={savingsGoals} onNavigate={onNavigate} />
                 </motion.div>
                 <motion.div variants={itemVariants}>
-                    <BudgetStatus budgets={budgets} expenses={thisMonthTx.filter(t => t.type === 'expense')} onNavigate={onNavigate} />
+                    <BudgetStatusBulletView budgets={budgets} expenses={thisMonthTx.filter(t => t.type === 'expense')} onNavigate={onNavigate} />
                 </motion.div>
             </div>
             <div className="col-span-12 flex justify-end">
@@ -824,8 +964,12 @@ function DashboardView({ transactions, budgets, savingsGoals, onNavigate, onAddT
                         Send Summary Report
                     </button>
             </div>
-            
+            <div ref={reportRef} style={{ position: 'absolute', left: '-9999px', zIndex: -1 }}>
+                {/* We conditionally render the ReportTemplate *inside* the permanent div */}
+                {reportData && <ReportTemplate data={reportData} />}
+            </div>
         </motion.div>
+        
     );
 }
 
@@ -989,11 +1133,54 @@ const FinancialHealthScore = ({ income, expense, goals }) => {
     );
 };
 
-function TransactionListView({ transactions, handleDeleteTransaction }) {
+// In App.jsx, replace the existing TransactionListView function
+
+function TransactionListView({ transactions, handleDeleteTransaction, categories }) {
+    const [categoryFilter, setCategoryFilter] = useState('all');
+
+    // Combine all available categories for the dropdown
+    const allCategories = useMemo(() => {
+        const expenseCats = categories?.expense || [];
+        const incomeCats = categories?.income || [];
+        // Use a Set to ensure no duplicates if a category exists in both
+        return [...new Set([...expenseCats, ...incomeCats])];
+    }, [categories]);
+
+    // Apply the category filter on top of the search results from the parent
+    const filteredTransactions = categoryFilter === 'all'
+        ? transactions
+        : transactions.filter(t => t.category === categoryFilter);
+
     return (
         <div className="bg-white dark:bg-slate-800/50 backdrop-blur-md border border-gray-200 dark:border-white/10 p-4 sm:p-6 rounded-xl shadow-lg">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">All Transactions</h2>
-            {transactions.length > 0 ? <TransactionList transactions={transactions} handleDeleteTransaction={handleDeleteTransaction} /> : <EmptyState illustration={<EmptyWalletIllustration />} message="No transactions yet. Add one to get started!" />}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">All Transactions</h2>
+                <div className="w-full sm:w-auto">
+                     <label htmlFor="category-filter" className="sr-only">Filter by category</label>
+                     <select 
+                        id="category-filter"
+                        value={categoryFilter}
+                        onChange={e => setCategoryFilter(e.target.value)}
+                        className="w-full sm:w-64 bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg p-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="all">All Categories</option>
+                        {categories?.expense?.length > 0 && (
+                            <optgroup label="Expense">
+                                {categories.expense.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                            </optgroup>
+                        )}
+                        {categories?.income?.length > 0 && (
+                             <optgroup label="Income">
+                                {categories.income.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                            </optgroup>
+                        )}
+                    </select>
+                </div>
+            </div>
+            {filteredTransactions.length > 0 
+                ? <TransactionList transactions={filteredTransactions} handleDeleteTransaction={handleDeleteTransaction} /> 
+                : <EmptyState illustration={<EmptyWalletIllustration />} message="No transactions match your current filters." />
+            }
         </div>
     );
 }
@@ -2006,28 +2193,43 @@ function AddSubscriptionDialog({ onClose, onAdd }) {
     );
 }
 
-function BudgetStatus({ budgets, expenses, onNavigate }) {
+// Replace your existing BudgetStatus component with this one.
+
+function BudgetStatusBulletView({ budgets, expenses, onNavigate }) {
     const budgetData = useMemo(() => {
-        const expenseByCategory = {};
-        expenses.forEach(t => {
+        const today = new Date();
+        const dayOfMonth = today.getDate();
+        const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+        const monthProgressDecimal = (dayOfMonth / daysInMonth); // e.g., 0.32 for 32%
+
+        const expenseByCategory = expenses.reduce((acc, t) => {
             const cat = t.category || 'Uncategorized';
-            expenseByCategory[cat] = (expenseByCategory[cat] || 0) + (parseFloat(t.amount) || 0);
-        });
+            acc[cat] = (acc[cat] || 0) + (parseFloat(t.amount) || 0);
+            return acc;
+        }, {});
 
         return Object.entries(budgets).map(([cat, bud]) => {
-            const spent = expenseByCategory[cat] || 0;
-            const percentage = bud > 0 ? (spent / bud) * 100 : 0;
-            const remaining = bud - spent;
-            return { cat, bud, spent, percentage, remaining };
-        }).filter(b => b.bud > 0);
-    }, [budgets, expenses]);
+            if (bud <= 0) return null; // Ignore items with no budget set
 
-    const getProgressBarColor = (percentage) => {
-        if (percentage > 100) return 'bg-red-500';
-        if (percentage > 90) return 'bg-orange-500';
-        if (percentage > 50) return 'bg-yellow-500';
-        return 'bg-green-500';
-    };
+            const spent = expenseByCategory[cat] || 0;
+            const percentage = (spent / bud) * 100;
+            const pacingValue = bud * monthProgressDecimal; // The monetary value of the pacing target
+            const remaining = bud - spent;
+            
+            let status = 'On Track';
+            let statusColor = 'text-green-600 dark:text-green-500';
+            if (spent > pacingValue && spent <= bud) {
+                status = 'At Risk';
+                statusColor = 'text-yellow-600 dark:text-yellow-500';
+            }
+            if (spent > bud) {
+                status = 'Overspent';
+                statusColor = 'text-red-600 dark:text-red-500';
+            }
+            
+            return { cat, bud, spent, percentage, pacingValue, remaining, status, statusColor };
+        }).filter(Boolean); // Filter out any null items
+    }, [budgets, expenses]);
 
     if (budgetData.length === 0) {
         return (
@@ -2042,34 +2244,23 @@ function BudgetStatus({ budgets, expenses, onNavigate }) {
 
     return (
         <ChartCard title="Budget Status">
-            <div className="space-y-5">
-                {budgetData.map(({ cat, bud, spent, percentage, remaining }) => (
-                    <div key={cat}>
-                        <div className="flex justify-between items-end mb-1">
-                            <span className="font-medium text-gray-800 dark:text-slate-200">{cat}</span>
-                            <div className="text-right">
-                                <p className="text-sm font-bold text-gray-900 dark:text-white">
-                                    £{spent.toLocaleString('en-GB', {maximumFractionDigits: 0})} / <span className="text-gray-500 dark:text-slate-400">£{bud.toLocaleString('en-GB', {maximumFractionDigits: 0})}</span>
-                                </p>
-                                <p className={`text-xs font-medium ${remaining >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-500'}`}>
-                                    {remaining >= 0 ? `£${remaining.toFixed(2)} remaining` : `£${Math.abs(remaining).toFixed(2)} over`}
-                                </p>
-                            </div>
+            <div className="space-y-4">
+                {budgetData.map((item) => (
+                    <div key={item.cat}>
+                        <div className="flex justify-between items-baseline mb-1 px-2">
+                            <p className="font-medium text-gray-800 dark:text-slate-200">{item.cat}</p>
+                            <p className={`text-sm font-bold ${item.statusColor}`}>
+                                {item.status} (£{item.remaining.toFixed(0)} {item.remaining > 0 ? 'left' : 'over'})
+                            </p>
                         </div>
-                        <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-3 relative">
-                            <motion.div
-                                className={`h-3 rounded-full ${getProgressBarColor(percentage)}`}
-                                initial={{ width: 0 }}
-                                animate={{ width: `${Math.min(percentage, 100)}%` }}
-                                transition={{ duration: 0.8, ease: "easeOut" }}
-                            />
-                        </div>
+                        <BudgetBulletChart data={item} />
                     </div>
                 ))}
             </div>
         </ChartCard>
     );
 }
+
 function SavingsGoalsWidget({ goals, onNavigate }) {
     if (goals.length === 0) {
         return (
@@ -2234,7 +2425,6 @@ const renderActiveShape = (props) => {
     );
 };
 
-
 function SpendingBreakdownChart({ transactions }) {
     const [dateRange, setDateRange] = useState('this_month');
     const [activeIndex, setActiveIndex] = useState(0);
@@ -2325,5 +2515,64 @@ function SpendingBreakdownChart({ transactions }) {
                  </div>
             )}
         </ChartCard>
+    );
+}
+/**
+ * A reusable component to render a single Bullet Chart for a budget item.
+ * It uses a vertical BarChart and layers multiple bars to create the effect.
+ */
+function BudgetBulletChart({ data }) {
+    // We only have one item, so we wrap it in an array for the chart
+    const chartData = [data]; 
+    // Determine the max value for the X-axis domain to handle overspending
+    const domainMax = Math.max(data.budget, data.spent) * 1.1;
+
+    // Custom Tooltip for more context
+    const CustomBulletTooltip = ({ active, payload }) => {
+        if (active && payload && payload.length) {
+            const d = payload[0].payload;
+            return (
+                <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-300 dark:border-slate-700 p-3 rounded-lg shadow-lg text-sm">
+                    <p className="font-bold text-gray-900 dark:text-white mb-2">{d.cat}</p>
+                    {/* The only change is d.budget is now d.bud */}
+                    <p><span className="font-semibold">Spent:</span> £{d.spent.toFixed(2)}</p>
+                    <p><span className="font-semibold">Budget:</span> £{d.bud.toFixed(2)}</p>
+                    <p className="text-gray-500 dark:text-slate-400 mt-1">Pacing Target: £{d.pacingValue.toFixed(2)}</p>
+                </div>
+            );
+        }
+        return null;
+    };
+
+    return (
+        <ResponsiveContainer width="100%" height={60}>
+            <BarChart
+                data={chartData}
+                layout="vertical"
+                margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+            >
+                <CartesianGrid horizontal={false} stroke="rgb(100 116 139 / 0.1)" />
+                <XAxis type="number" domain={[0, domainMax]} hide />
+                <YAxis type="category" dataKey="cat" hide />
+                <Tooltip content={<CustomBulletTooltip />} cursor={{ fill: 'rgba(156, 163, 175, 0.1)' }} />
+
+                {/* Background Bar (Qualitative Range: 100% of budget) */}
+                <Bar dataKey="budget" barSize={24} stackId="a" fill="rgb(229 231 235)" radius={[5, 5, 5, 5]} />
+                
+                {/* Primary Measure (Amount Spent) */}
+                <Bar dataKey="spent" barSize={12} stackId="b" fill={data.percentage > 100 ? '#ef4444' : '#3b82f6'} radius={[3, 3, 3, 3]} />
+
+                {/* Target Marker (Vertical line for the budget total) */}
+                <ReferenceLine x={data.budget} stroke="#1f2937" strokeWidth={2}>
+                    <Label value="Budget" position="top" fill="#6b7280" fontSize={10} />
+                </ReferenceLine>
+
+                {/* Pacing Marker (Vertical line for where you should be today) */}
+                <ReferenceLine x={data.pacingValue} stroke="#6b7280" strokeDasharray="3 3" strokeWidth={2}>
+                     <Label value="Today" position="insideTopRight" fill="#6b7280" fontSize={10} />
+                </ReferenceLine>
+
+            </BarChart>
+        </ResponsiveContainer>
     );
 }
